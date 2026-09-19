@@ -11,6 +11,7 @@ import {
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { join } from "node:path";
 import { settings } from "./settings";
+import { installSessions } from "./session-runtime";
 
 let dashboard: BrowserWindow,
   overlay: BrowserWindow,
@@ -135,12 +136,13 @@ else {
       tray.setContextMenu(
         Menu.buildFromTemplate([
           { label: "Open Dashboard", click: openDashboard },
-          { label: "No active session", enabled: false },
+          { label: "Session status: hover over tray icon", enabled: false },
           { type: "separator" },
           { label: "Quit FocusLock", click: () => app.quit() },
         ]),
       );
       tray.on("double-click", openDashboard);
+      installSessions(dashboard, tray, page("index.html"));
       await Promise.all([
         dashboard.loadURL(page("index.html")),
         createOverlay(),

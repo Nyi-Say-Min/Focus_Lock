@@ -48,7 +48,7 @@ export function settings(cwd: string, patch?: unknown): Result {
       ...store.store,
       ...(patch as Partial<Settings> | undefined),
     };
-    store.store = value;
+    if (patch !== undefined) store.store = value;
     return { ok: true, value };
   } catch {
     return { ok: false, error: "STORAGE_FAILED" };

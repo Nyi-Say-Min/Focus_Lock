@@ -3,6 +3,11 @@ import "@testing-library/jest-dom/vitest";
 import { afterEach, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import App from "../src/renderer/src/App";
+const session = {
+  getCurrent: vi.fn().mockResolvedValue({ ok: true, value: null, now: 0 }),
+  start: vi.fn(),
+  stop: vi.fn(),
+};
 afterEach(cleanup);
 
 const value = { allowanceMinutes: 30, blockMinutes: 30 };
@@ -12,6 +17,7 @@ it("loads settings and reports save success only after persistence succeeds", as
     .mockResolvedValueOnce({ ok: false, error: "STORAGE_FAILED" })
     .mockResolvedValueOnce({ ok: true, value });
   window.focusLock = {
+    session,
     settings: { get: vi.fn().mockResolvedValue({ ok: true, value }), update },
   };
   render(<App />);
@@ -31,6 +37,7 @@ it("loads settings and reports save success only after persistence succeeds", as
 });
 it("offers a retry after the bridge fails to load", async () => {
   window.focusLock = {
+    session,
     settings: {
       get: vi
         .fn()

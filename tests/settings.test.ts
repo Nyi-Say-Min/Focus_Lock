@@ -92,3 +92,10 @@ it("returns a typed error when persistence fails", () => {
     error: "STORAGE_FAILED",
   });
 });
+it("does not rewrite settings during reads", () => {
+  const dir = directory();
+  settings(dir);
+  const write = vi.spyOn(Store.prototype, "store", "set");
+  expect(settings(dir).ok).toBe(true);
+  expect(write).not.toHaveBeenCalled();
+});

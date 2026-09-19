@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { Settings } from "../../shared/types";
+import SessionCard from "./SessionCard";
 
 export default function App() {
   const [value, setValue] = useState<Settings | null>(null);
@@ -60,13 +61,8 @@ export default function App() {
         <p className="mt-4 text-stone-400">
           Choose your defaults. Make room for what matters.
         </p>
-        <div className="mt-8 border-t border-white/10 pt-5 text-sm text-emerald-200">
-          ○ No active session{" "}
-          <span className="ml-3 text-stone-400">
-            Session controls are coming next.
-          </span>
-        </div>
       </section>
+      <SessionCard />
       <form
         className="panel"
         onSubmit={(event) => {
