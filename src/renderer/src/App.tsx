@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { Settings } from "../../shared/types";
 import SessionCard from "./SessionCard";
+import ApplicationsCard from "./ApplicationsCard";
 
 export default function App() {
   const [value, setValue] = useState<Settings | null>(null);
@@ -63,6 +64,7 @@ export default function App() {
         </p>
       </section>
       <SessionCard />
+      <ApplicationsCard />
       <form
         className="panel"
         onSubmit={(event) => {

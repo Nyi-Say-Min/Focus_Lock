@@ -3,10 +3,12 @@ import "@testing-library/jest-dom/vitest";
 import { afterEach, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import SessionCard from "../src/renderer/src/SessionCard";
+
 afterEach(() => {
   cleanup();
   vi.useRealTimers();
 });
+
 it("starts and stops through IPC, polls the main clock and disables unavailable controls", async () => {
   vi.useFakeTimers();
   const value = { startedAt: 0, allowanceEndsAt: 60000, blockEndsAt: 120000, status: "active" };
@@ -15,7 +17,11 @@ it("starts and stops through IPC, polls the main clock and disables unavailable 
     start: vi.fn().mockResolvedValue({ ok: true, value, now: 0 }),
     stop: vi.fn().mockResolvedValue({ ok: true, value: { ...value, status: "cancelled" }, now: 1000 }),
   };
-  window.focusLock = { settings: { get: vi.fn(), update: vi.fn() }, session };
+  window.focusLock = {
+    settings: { get: vi.fn(), update: vi.fn() },
+    session,
+    applications: { list: vi.fn(), add: vi.fn(), setEnabled: vi.fn(), remove: vi.fn() },
+  };
   await act(async () => {
     render(<SessionCard />);
   });

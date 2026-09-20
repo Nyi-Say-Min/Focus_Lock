@@ -1,6 +1,10 @@
 {
   "overrides": [
     {
+      "files": ["**/{*application*,*process*}.ts", "**/Applications*.tsx"],
+      "options": { "printWidth": 120, "objectWrap": "collapse" }
+    },
+    {
       "files": ["**/*session*.ts", "**/SessionCard*.tsx", "scripts/*.mjs"],
       "options": { "printWidth": 120, "objectWrap": "collapse" }
     }

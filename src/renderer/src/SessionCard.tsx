@@ -1,12 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { SessionAPI, SessionResult } from "../../shared/session";
-const messages: Record<string, string> = {
-  SESSION_ALREADY_ACTIVE: "A session is already running.",
-  NO_ACTIVE_SESSION: "There is no running session to stop.",
-  INVALID_SESSION_DURATION: "Save durations between 1 and 1,440 minutes first.",
-  INVALID_SAVED_SESSION: "The saved session could not be restored.",
-};
-const explain = (code: string) => messages[code] ?? "Session unavailable. Please try again.";
+import { explain } from "./utils/sessionErrorMessagesExplaination";
 
 export default function SessionCard() {
   const [snapshot, setSnapshot] = useState<SessionResult | null>(null);
@@ -14,12 +8,14 @@ export default function SessionCard() {
   const [error, setError] = useState("");
   const sequence = useRef(0);
   const changing = useRef(false);
+
   useEffect(
     () => () => {
       sequence.current++;
     },
     [],
   );
+
   async function request(action: keyof SessionAPI) {
     if (action === "getCurrent" && changing.current) return;
     const id = ++sequence.current;
@@ -44,6 +40,7 @@ export default function SessionCard() {
       }
     }
   }
+
   useEffect(() => {
     if (busy) return;
     void request("getCurrent");

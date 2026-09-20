@@ -11,12 +11,19 @@ const session = {
 afterEach(cleanup);
 
 const value = { allowanceMinutes: 30, blockMinutes: 30 };
+const applications = {
+  list: vi.fn().mockResolvedValue({ ok: true, value: [], scanFailed: false }),
+  add: vi.fn(),
+  setEnabled: vi.fn(),
+  remove: vi.fn(),
+};
 it("loads settings and reports save success only after persistence succeeds", async () => {
   const update = vi
     .fn()
     .mockResolvedValueOnce({ ok: false, error: "STORAGE_FAILED" })
     .mockResolvedValueOnce({ ok: true, value });
   window.focusLock = {
+    applications,
     session,
     settings: { get: vi.fn().mockResolvedValue({ ok: true, value }), update },
   };
@@ -37,6 +44,7 @@ it("loads settings and reports save success only after persistence succeeds", as
 });
 it("offers a retry after the bridge fails to load", async () => {
   window.focusLock = {
+    applications,
     session,
     settings: {
       get: vi

@@ -12,6 +12,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { join } from "node:path";
 import { settings } from "./settings";
 import { installSessions } from "./session-runtime";
+import { installApplications } from "./application-runtime";
 
 let dashboard: BrowserWindow,
   overlay: BrowserWindow,
@@ -143,6 +144,7 @@ else {
       );
       tray.on("double-click", openDashboard);
       installSessions(dashboard, tray, page("index.html"));
+      installApplications(dashboard, page("index.html"));
       await Promise.all([
         dashboard.loadURL(page("index.html")),
         createOverlay(),
