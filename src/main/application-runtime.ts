@@ -53,4 +53,5 @@ export function installApplications(window: BrowserWindow, url: string) {
         };
       }
     });
+  return registry.list;
 }

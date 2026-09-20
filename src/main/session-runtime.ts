@@ -3,8 +3,11 @@ import Store from "electron-store";
 import type { Session } from "../shared/session";
 import { createSessionEngine } from "./session";
 import { settings } from "./settings";
+import type { Application } from "../shared/applications";
+import { createBlocker } from "./process-blocker";
 
-export function installSessions(window: BrowserWindow, tray: Tray, url: string) {
+export function installSessions(window: BrowserWindow, tray: Tray, url: string, readApps: () => Application[]) {
+  const blocker = createBlocker(readApps);
   let store: Store<{ current: Session | null }>;
   const open = () =>
     (store ??= new Store<{ current: Session | null }>({
@@ -18,6 +21,7 @@ export function installSessions(window: BrowserWindow, tray: Tray, url: string) 
   });
   const refresh = () => {
     const result = engine("getCurrent");
+    const blockingError = blocker.update(result);
     const value = result.ok ? result.value : null;
     const end = value?.status === "active" ? value.allowanceEndsAt : value?.blockEndsAt;
     const seconds = result.ok && end ? Math.max(0, Math.ceil((end - result.now) / 1000)) : 0;
@@ -28,7 +32,7 @@ export function installSessions(window: BrowserWindow, tray: Tray, url: string) 
           ? `FocusLock • ${value.status === "active" ? "Social time" : "Break"}: ${seconds}s remaining`
           : "FocusLock • No active session",
     );
-    return result;
+    return result.ok ? { ...result, blockingError } : result;
   };
   for (const action of ["getCurrent", "start", "stop"] as const)
     ipcMain.handle(`session:${action}`, (event, ...args) => {
@@ -50,6 +54,7 @@ export function installSessions(window: BrowserWindow, tray: Tray, url: string) 
   const timer = setInterval(refresh, 1000);
   powerMonitor.on("resume", refresh);
   app.once("before-quit", () => {
+    blocker.close();
     clearInterval(timer);
     powerMonitor.removeListener("resume", refresh);
   });

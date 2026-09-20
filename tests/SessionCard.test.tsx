@@ -57,3 +57,22 @@ it("starts and stops through IPC, polls the main clock and disables unavailable 
   });
   expect(screen.getByText("Start session")).toBeEnabled();
 });
+
+it("shows enforcement errors while keeping Stop session available", async () => {
+  const getCurrent = vi
+    .fn()
+    .mockResolvedValue({
+      ok: true,
+      now: 61000,
+      blockingError: "Some selected apps could not be closed.",
+      value: { startedAt: 0, allowanceEndsAt: 60000, blockEndsAt: 120000, status: "blocking" },
+    });
+  window.focusLock = {
+    settings: { get: vi.fn(), update: vi.fn() },
+    applications: { list: vi.fn(), add: vi.fn(), setEnabled: vi.fn(), remove: vi.fn() },
+    session: { getCurrent, start: vi.fn(), stop: vi.fn() },
+  };
+  render(<SessionCard />);
+  expect(await screen.findByText("Some selected apps could not be closed.")).toBeInTheDocument();
+  expect(screen.getByText("Stop session")).toBeEnabled();
+});

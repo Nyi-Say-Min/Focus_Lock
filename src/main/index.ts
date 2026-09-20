@@ -143,8 +143,8 @@ else {
         ]),
       );
       tray.on("double-click", openDashboard);
-      installSessions(dashboard, tray, page("index.html"));
-      installApplications(dashboard, page("index.html"));
+      const readApps = installApplications(dashboard, page("index.html"));
+      installSessions(dashboard, tray, page("index.html"), readApps);
       await Promise.all([
         dashboard.loadURL(page("index.html")),
         createOverlay(),

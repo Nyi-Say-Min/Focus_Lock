@@ -52,7 +52,10 @@ export default function ApplicationsCard() {
   return (
     <fieldset className="panel mb-6" aria-label="Applications" disabled={busy}>
       <legend className="text-lg font-semibold">Applications</legend>
-      <p className="my-3 text-sm text-stone-400">Choose apps to track. App blocking is not enabled yet.</p>
+      <p className="my-3 text-sm text-stone-400">
+        Selected desktop apps will be closed during breaks. Changes apply to an ongoing break. Website blocking is
+        planned for a later phase.
+      </p>
       <form
         onSubmit={(event) => {
           event.preventDefault();

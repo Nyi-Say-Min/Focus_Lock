@@ -66,12 +66,15 @@ export default function SessionCard() {
       <p className="my-4 font-mono text-4xl" aria-label="Time remaining">
         {running ? time : "00:00:00"}
       </p>
-      <p className="mb-4 text-sm text-stone-400">Uses saved defaults. App blocking is not enabled yet.</p>
+      <p className="mb-4 text-sm text-stone-400">
+        During the break, selected desktop apps are forcibly closed, including relaunches. Save your work first.
+        Stopping the session or quitting FocusLock ends enforcement.
+      </p>
       <button disabled={busy || !snapshot?.ok} onClick={() => void request(running ? "stop" : "start")}>
         {busy ? "Please wait…" : running ? "Stop session" : "Start session"}
       </button>
       <p role="status" className="mt-3 text-sm text-emerald-200">
-        {error || (snapshot && !snapshot.ok ? explain(snapshot.error) : "")}
+        {error || (snapshot?.ok ? snapshot.blockingError : snapshot ? explain(snapshot.error) : "")}
       </p>
     </section>
   );
