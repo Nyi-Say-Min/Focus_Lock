@@ -6,13 +6,17 @@ import { spawn } from "node:child_process";
 import { once } from "node:events";
 import { createBlocker, terminateWindows, type Terminate } from "../src/main/process-blocker";
 import type { Session, SessionResult } from "../src/shared/session";
+
 const apps = [{ id: "demo.exe", name: "Demo", executableName: "demo.exe", enabled: true }];
+
 const snapshot = (status: Session["status"] = "blocking"): SessionResult => ({
   ok: true,
   now: 2000,
   value: { status, startedAt: 0, allowanceEndsAt: 1000, blockEndsAt: 9000 },
 });
+
 const settle = () => new Promise((resolve) => setImmediate(resolve));
+
 it("enforces only blocking sessions, uses selections and retries relaunches without overlapping", async () => {
   let now = 2000;
   const terminate = vi.fn().mockResolvedValue(undefined);
@@ -38,6 +42,7 @@ it("enforces only blocking sessions, uses selections and retries relaunches with
   blocker.update(snapshot());
   expect(terminate).toHaveBeenCalledTimes(2);
 });
+
 it.each(["stop", "quit", "selection", "storage", "session error"])("cancels in-flight enforcement on %s", (reason) => {
   let items = apps;
   const read = vi.fn(() => items),
@@ -57,6 +62,7 @@ it.each(["stop", "quit", "selection", "storage", "session error"])("cancels in-f
   }
   expect(terminate.mock.calls[0][1].aborted).toBe(true);
 });
+
 it("reports failure, recovers on retry, and never resumes after shutdown", async () => {
   let now = 2000;
   const terminate = vi.fn().mockRejectedValueOnce(Error("access denied")).mockResolvedValue(undefined);
@@ -77,11 +83,13 @@ it("reports failure, recovers on retry, and never resumes after shutdown", async
   blocker.update(snapshot());
   expect(terminate).toHaveBeenCalledTimes(2);
 });
+
 it.skipIf(process.platform !== "win32")("refuses the current executable", async () => {
   await expect(
     terminateWindows({ names: [basename(process.execPath)], until: Date.now() + 10000 }, new AbortController().signal),
   ).rejects.toThrow("itself");
 });
+
 it.skipIf(process.platform !== "win32")(
   "terminates only a disposable selected executable and respects expiry",
   async () => {

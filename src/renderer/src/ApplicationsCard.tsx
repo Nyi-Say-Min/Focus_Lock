@@ -1,15 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import type { ApplicationsResult } from "../../shared/applications";
+import ApplicationsPicker from "./ApplicationsPicker";
 
 const messages: Record<string, string> = {
-  INVALID_EXECUTABLE: "Enter an executable name such as Discord.exe, without a folder path.",
+  INVALID_EXECUTABLE: "Choose an existing .exe file outside the Windows folder. FocusLock cannot block itself.",
   DUPLICATE_APPLICATION: "That application is already listed.",
   APPLICATION_LIMIT: "You can configure up to 100 applications.",
 };
 
 export default function ApplicationsCard() {
-  const [result, setResult] = useState<ApplicationsResult | null>(null),
-    [name, setName] = useState("");
+  const [result, setResult] = useState<ApplicationsResult | null>(null);
   const [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   const lock = useRef(false),
@@ -56,27 +56,7 @@ export default function ApplicationsCard() {
         Selected desktop apps will be closed during breaks. Changes apply to an ongoing break. Website blocking is
         planned for a later phase.
       </p>
-      <form
-        onSubmit={(event) => {
-          event.preventDefault();
-          void request(() => window.focusLock.applications.add(name.trim()), true);
-        }}
-        className="mb-4"
-      >
-        <label className="text-sm">
-          Executable name
-          <input
-            value={name}
-            maxLength={120}
-            required
-            placeholder="Discord.exe"
-            onChange={(event) => setName(event.target.value)}
-          />
-        </label>
-        <button disabled={!result?.ok} type="submit">
-          Add application
-        </button>
-      </form>
+      <ApplicationsPicker added={result?.ok ? result.value.map((item) => item.id) : []} request={request} />
       {result?.ok && (
         <ul>
           {result.value.map((item) => (
@@ -90,7 +70,10 @@ export default function ApplicationsCard() {
                     void request(() => window.focusLock.applications.setEnabled(item.id, event.target.checked), true)
                   }
                 />
-                {item.executableName}
+                <span>
+                  {item.name}
+                  <small className="block text-stone-400">{item.executableName}</small>
+                </span>
               </label>
               <span className="text-sm">
                 {item.running === null ? "Unknown" : item.running ? "Running" : "Not running"}
@@ -105,7 +88,7 @@ export default function ApplicationsCard() {
           ))}
         </ul>
       )}
-      {result?.ok && !result.value.length && <p>No applications configured. Add an executable above.</p>}
+      {result?.ok && !result.value.length && <p>No applications configured. Choose an app above.</p>}
       <p role="status" className="mt-3 text-sm text-emerald-200">
         {error || (result?.ok && result.scanFailed ? "Running status unavailable. Retrying automatically." : "")}
       </p>

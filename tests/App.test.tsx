@@ -3,6 +3,7 @@ import "@testing-library/jest-dom/vitest";
 import { afterEach, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import App from "../src/renderer/src/App";
+
 const session = {
   getCurrent: vi.fn().mockResolvedValue({ ok: true, value: null, now: 0 }),
   start: vi.fn(),
@@ -11,12 +12,16 @@ const session = {
 afterEach(cleanup);
 
 const value = { allowanceMinutes: 30, blockMinutes: 30 };
+
 const applications = {
+  discover: vi.fn(),
+  browse: vi.fn(),
   list: vi.fn().mockResolvedValue({ ok: true, value: [], scanFailed: false }),
   add: vi.fn(),
   setEnabled: vi.fn(),
   remove: vi.fn(),
 };
+
 it("loads settings and reports save success only after persistence succeeds", async () => {
   const update = vi
     .fn()
@@ -42,6 +47,7 @@ it("loads settings and reports save success only after persistence succeeds", as
   fireEvent.click(screen.getByRole("button", { name: "Save defaults" }));
   expect(await screen.findByText("Settings saved.")).toBeInTheDocument();
 });
+
 it("offers a retry after the bridge fails to load", async () => {
   window.focusLock = {
     applications,

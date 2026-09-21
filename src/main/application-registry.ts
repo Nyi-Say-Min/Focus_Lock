@@ -33,14 +33,14 @@ export function applicationRegistry(storage: { read(): unknown; write(value: App
       throw Error("INVALID_APPLICATIONS");
     return items.map((item) => ({ ...item }));
   };
-  const change = (action: string, args: unknown[]) => {
+  const change = (action: string, args: unknown[], label?: string) => {
     const items = list(),
       [id, enabled] = args;
     if (action === "add") {
       if (args.length !== 1 || !executable(id)) throw Error("INVALID_EXECUTABLE");
       if (items.some((item) => item.id === id.toLowerCase())) throw Error("DUPLICATE_APPLICATION");
       if (items.length === 100) throw Error("APPLICATION_LIMIT");
-      items.push({ id: id.toLowerCase(), name: id.slice(0, -4), executableName: id, enabled: true });
+      items.push({ id: id.toLowerCase(), name: label || id.slice(0, -4), executableName: id, enabled: true });
     } else {
       if (
         typeof id !== "string" ||

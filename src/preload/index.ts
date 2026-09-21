@@ -14,6 +14,8 @@ const session: SessionAPI = {
   stop: () => ipcRenderer.invoke("session:stop"),
 };
 const applications: ApplicationsAPI = {
+  discover: () => ipcRenderer.invoke("applications:discover"),
+  browse: () => ipcRenderer.invoke("applications:browse"),
   list: () => ipcRenderer.invoke("applications:list"),
   add: (name) => ipcRenderer.invoke("applications:add", name),
   setEnabled: (id, enabled) =>

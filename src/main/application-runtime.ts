@@ -1,6 +1,7 @@
 import { ipcMain, type BrowserWindow } from "electron";
 import Store from "electron-store";
-import type { Application, ApplicationsResult } from "../shared/applications";
+import type { Application, ApplicationsResult, DiscoveryResult } from "../shared/applications";
+import { applicationPicker } from "./application-discovery";
 import { applicationRegistry, defaultApplications } from "./application-registry";
 import { cachedScanner } from "./process-controller";
 
@@ -17,8 +18,9 @@ export function installApplications(window: BrowserWindow, url: string) {
     write: (items) => open().set("items", items),
   });
   const scan = cachedScanner();
-  for (const action of ["list", "add", "setEnabled", "remove"])
-    ipcMain.handle(`applications:${action}`, async (event, ...args): Promise<ApplicationsResult> => {
+  const picker = applicationPicker(window);
+  for (const action of ["list", "add", "setEnabled", "remove", "discover", "browse"])
+    ipcMain.handle(`applications:${action}`, async (event, ...args): Promise<ApplicationsResult | DiscoveryResult> => {
       if (
         event.sender !== window.webContents ||
         event.senderFrame !== window.webContents.mainFrame ||
@@ -26,8 +28,14 @@ export function installApplications(window: BrowserWindow, url: string) {
       )
         return { ok: false, error: "FORBIDDEN" };
       try {
-        if (action === "list" && args.length) return { ok: false, error: "INVALID_APPLICATION" };
-        if (action !== "list") registry.change(action, args);
+        if (["list", "discover", "browse"].includes(action) && args.length)
+          return { ok: false, error: "INVALID_APPLICATION" };
+        if (action === "discover") return { ok: true, value: await picker.discover() };
+        if (action === "browse") {
+          const item = await picker.browse();
+          if (item) registry.change("add", [item.executableName], item.name);
+        } else if (action !== "list")
+          registry.change(action, args, action === "add" ? picker.label(args[0]) : undefined);
         registry.list();
         let running: Set<string> | null = null,
           scanFailed = false;

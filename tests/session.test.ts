@@ -1,13 +1,17 @@
 import { beforeEach, expect, it, vi } from "vitest";
 import { createSessionEngine } from "../src/main/session";
+
 let saved: unknown, now: number;
+
 const storage = {
   read: () => saved,
   write: vi.fn((value: unknown) => {
     saved = structuredClone(value);
   }),
 };
+
 let engine: ReturnType<typeof createSessionEngine>;
+
 const durations = { allowanceMinutes: 1, blockMinutes: 2 };
 beforeEach(() => {
   saved = null;
@@ -15,6 +19,7 @@ beforeEach(() => {
   storage.write.mockClear();
   engine = createSessionEngine(storage, () => now);
 });
+
 it("persists deadlines, prevents duplicate starts and advances exactly at boundaries", () => {
   expect(engine("start", durations)).toMatchObject({
     ok: true,
@@ -29,6 +34,7 @@ it("persists deadlines, prevents duplicate starts and advances exactly at bounda
   now = 181000;
   expect(engine("getCurrent")).toMatchObject({ value: { status: "completed" } });
 });
+
 it.each([
   [30000, "active"],
   [90000, "blocking"],
@@ -40,6 +46,7 @@ it.each([
     value: { status, allowanceEndsAt: 61000, blockEndsAt: 181000 },
   });
 });
+
 it("persists cancellation, allows a new session and rejects stopping idle sessions", () => {
   expect(engine("stop")).toMatchObject({ error: "NO_ACTIVE_SESSION" });
   engine("start", durations);
@@ -48,6 +55,7 @@ it("persists cancellation, allows a new session and rejects stopping idle sessio
   expect(createSessionEngine(storage, () => now)("getCurrent")).toMatchObject({ value: { status: "cancelled" } });
   expect(engine("start", durations).ok).toBe(true);
 });
+
 it("does not acknowledge a failed write and retries an expired transition", () => {
   storage.write.mockImplementationOnce(() => {
     throw Error("disk full");
@@ -62,6 +70,7 @@ it("does not acknowledge a failed write and retries an expired transition", () =
   expect(engine("getCurrent")).toMatchObject({ error: "SESSION_STORAGE_FAILED" });
   expect(engine("getCurrent")).toMatchObject({ value: { status: "blocking" } });
 });
+
 it("preserves corrupt state and rejects invalid durations", () => {
   expect(engine("start", { ...durations, allowanceMinutes: 0 })).toMatchObject({ error: "INVALID_SESSION_DURATION" });
   saved = { status: "active" };
