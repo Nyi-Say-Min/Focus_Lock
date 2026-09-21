@@ -18,7 +18,6 @@ vi.mock("electron", () => ({
   },
 }));
 
-
 const dirs: string[] = [];
 const directory = () => {
   const dir = mkdtempSync(join(tmpdir(), "focuslock-test-"));

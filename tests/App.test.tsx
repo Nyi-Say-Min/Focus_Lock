@@ -4,6 +4,14 @@ import { afterEach, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import App from "../src/renderer/src/App";
 
+vi.stubGlobal(
+  "ResizeObserver",
+  class {
+    observe = vi.fn();
+    disconnect = vi.fn();
+  },
+);
+
 const session = {
   getCurrent: vi.fn().mockResolvedValue({ ok: true, value: null, now: 0 }),
   start: vi.fn(),
@@ -33,9 +41,12 @@ it("loads settings and reports save success only after persistence succeeds", as
     settings: { get: vi.fn().mockResolvedValue({ ok: true, value }), update },
   };
   render(<App />);
-  fireEvent.change(await screen.findByLabelText(/Social allowance/), {
-    target: { value: "20" },
-  });
+  fireEvent.change(
+    await screen.findByRole("spinbutton", { name: "Social allowance" }),
+    {
+      target: { value: "20" },
+    },
+  );
   fireEvent.click(screen.getByRole("button", { name: "Save defaults" }));
   expect(
     await screen.findByText("Could not save settings. Try again."),
@@ -62,5 +73,7 @@ it("offers a retry after the bridge fails to load", async () => {
   };
   render(<App />);
   fireEvent.click(await screen.findByRole("button", { name: "Retry loading" }));
-  expect(await screen.findByLabelText(/Social allowance/)).toHaveValue(30);
+  expect(
+    await screen.findByRole("spinbutton", { name: "Social allowance" }),
+  ).toHaveValue(30);
 });

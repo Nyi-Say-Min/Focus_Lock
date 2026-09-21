@@ -55,7 +55,7 @@ it("starts and stops through IPC, polls the main clock and disables unavailable 
     await vi.advanceTimersByTimeAsync(1000);
   });
 
-  expect(screen.getByLabelText("Time remaining")).toHaveTextContent("00:00:59");
+  expect(screen.getByLabelText("Time remaining")).toHaveTextContent("00:59");
 
   session.getCurrent.mockResolvedValue({ ok: true, value: { ...value, status: "cancelled" }, now: 1000 });
 

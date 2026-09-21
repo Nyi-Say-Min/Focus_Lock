@@ -1,3 +1,4 @@
+import { Button, Input, ScrollArea } from "./common/ui";
 import { useState } from "react";
 import type { ApplicationsResult, InstalledApplication } from "../../shared/applications";
 export default function ApplicationsPicker({
@@ -29,16 +30,16 @@ export default function ApplicationsPicker({
   );
   return (
     <div className="mb-4">
-      <button type="button" disabled={loading} onClick={() => void load()}>
+      <Button type="button" disabled={loading} onClick={() => void load()}>
         {loading ? "Finding apps…" : items ? "Refresh apps" : "Choose installed apps"}
-      </button>
-      <button
+      </Button>
+      <Button
         type="button"
         className="ml-3"
         onClick={() => void request(() => window.focusLock.applications.browse(), true)}
       >
         Browse for an executable
-      </button>
+      </Button>
       <p className="my-3 text-sm text-stone-400">
         Apps found in Windows Start menu. Some Store or portable apps may be missing. Adding an app selects it for
         blocking.
@@ -46,10 +47,10 @@ export default function ApplicationsPicker({
       {items && (
         <label>
           Search installed apps
-          <input value={query} onChange={(event) => setQuery(event.target.value)} />
+          <Input value={query} onChange={(event) => setQuery(event.target.value)} />
         </label>
       )}
-      <ul className="max-h-64 overflow-auto" aria-label="Installed apps">
+      <ScrollArea as="ul" aria-label="Installed apps">
         {matches?.map((item) => (
           <li key={item.executableName.toLowerCase()} className="flex items-center gap-3 py-2">
             {item.icon && <img src={item.icon} alt="" width={24} height={24} />}
@@ -57,17 +58,17 @@ export default function ApplicationsPicker({
               {item.name}
               <small className="block text-stone-400">{item.executableName}</small>
             </span>
-            <button
+            <Button
               type="button"
               aria-label={`Add ${item.name}`}
               disabled={added.includes(item.executableName.toLowerCase())}
               onClick={() => void request(() => window.focusLock.applications.add(item.executableName), true)}
             >
               {added.includes(item.executableName.toLowerCase()) ? "Added" : "Add"}
-            </button>
+            </Button>
           </li>
         ))}
-      </ul>
+      </ScrollArea>
       {matches?.length === 0 && <p>No matching apps. Try browsing for an executable.</p>}
       <p role="status">{error}</p>
     </div>

@@ -1,0 +1,188 @@
+.world-definitions {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+.sprite {
+  display: block;
+  flex-shrink: 0;
+}
+.world-sidebar,
+.dashboard-panels {
+  position: relative;
+  z-index: 1;
+}
+.world-backdrop {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: linear-gradient(115deg, #55bafa, #2785ea);
+}
+.cloud {
+  position: absolute;
+  width: 9%;
+}
+.cloud-one {
+  top: 2%;
+  left: -2%;
+}
+.cloud-two {
+  top: 0;
+  left: 23%;
+}
+.cloud-three {
+  top: 1%;
+  right: 26%;
+}
+.distant-land {
+  position: absolute;
+  bottom: 6%;
+  left: 0;
+  width: 42%;
+  height: 38%;
+}
+.world-brand {
+  position: relative;
+  background: url("./art/brick.svg");
+  border: 4px solid #4c2b1a;
+  box-shadow:
+    inset 0 4px #d9994c,
+    0 5px #683b1f;
+}
+.world-brand > .sprite {
+  position: absolute;
+  height: 95%;
+  width: 28%;
+  left: 36%;
+  bottom: 88%;
+}
+.world-brand h1 {
+  color: #ffc927;
+  text-shadow:
+    2px 3px #422d1b,
+    -2px -2px #fff293,
+    4px 5px #422d1b;
+  font-family: Pixel;
+  padding: 4% 0;
+}
+.world-brand::before,
+.world-sidebar nav::before {
+  content: "";
+  position: absolute;
+  top: -10px;
+  left: -3px;
+  right: -3px;
+  height: 14px;
+  background: url("./art/grass.svg") left top / auto 100%;
+}
+.sidebar-scenery > .sprite:first-child {
+  position: absolute;
+  height: 36%;
+  left: 4%;
+  bottom: -8%;
+}
+.sidebar-scenery > .sprite:nth-child(2) {
+  position: absolute;
+  height: 17%;
+  right: 8%;
+  bottom: -4%;
+}
+.sidebar-scenery .wooden-sign {
+  position: relative;
+  margin-top: 12%;
+  margin-left: -8%;
+  padding: 6%;
+}
+.wooden-sign {
+  color: #342719;
+  border: 5px ridge #8c5729;
+  background: linear-gradient(100deg, #f8d996, #e6b56b);
+  box-shadow: 3px 3px #533922;
+  font-family: Pixel;
+}
+.wooden-sign::after {
+  content: "";
+  position: absolute;
+  width: 12%;
+  height: 34%;
+  top: 100%;
+  left: 47%;
+  background: #9f6931;
+  border: 2px solid #58381f;
+  z-index: -1;
+}
+.world-flag {
+  padding: 0;
+  background: none;
+  height: 24%;
+  top: 1%;
+  width: 9%;
+  z-index: 1;
+}
+.world-flag > .sprite {
+  width: 100%;
+  height: 100%;
+}
+.world-flag > span {
+  position: absolute;
+  left: 28%;
+  top: 17%;
+  font-size: calc(var(--unit) * 1.35);
+}
+.settings-scenery {
+  position: relative;
+  overflow: hidden;
+}
+.settings-scenery > .landscape {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  inset: 0;
+}
+.settings-scenery .wooden-sign {
+  position: relative;
+  margin-right: 4%;
+  margin-bottom: 7%;
+  z-index: 1;
+}
+.settings-flower {
+  position: absolute;
+  width: 5%;
+  height: 48%;
+  left: 33%;
+  bottom: 0;
+}
+.session-coins {
+  display: flex;
+  justify-content: space-between;
+  position: relative;
+}
+.session-coins::before {
+  content: "";
+  position: absolute;
+  width: 94%;
+  top: 50%;
+  border-top: 4px dotted #b3a586;
+}
+.session-coins .sprite {
+  position: relative;
+  height: calc(var(--unit) * 2.8);
+  background: #fff2ce;
+}
+.empty-coin {
+  filter: grayscale(1);
+  opacity: 0.3;
+}
+.world-ground {
+  border: 0;
+  background:
+    url("./art/grass.svg") left top / auto 30% repeat-x,
+    url("./art/brick.svg") left bottom / auto 72%;
+  z-index: 2;
+  padding-top: 1.5%;
+}
+.world-ground span {
+  box-shadow: 2px 2px #452e19;
+  background: linear-gradient(#ffdea0, #dca461);
+}

@@ -1,45 +1,5 @@
 @import "tailwindcss";
-body {
-  margin: 0;
-  background: #111714;
-  color: #edf4ef;
-  font-family: system-ui, sans-serif;
-}
-.panel {
-  border: 1px solid #304139;
-  border-radius: 20px;
-  padding: 28px;
-  background: #19231e;
-}
-.badge {
-  color: #a9d8bc;
-  font-size: 11px;
-  letter-spacing: 0.12em;
-}
-input {
-  display: block;
-  width: 100%;
-  margin: 10px 0 6px;
-  padding: 12px;
-  border: 1px solid #526a5c;
-  border-radius: 8px;
-  background: #111714;
-  color: #fff;
-  font-size: 22px;
-}
-button {
-  border-radius: 8px;
-  padding: 12px 18px;
-  background: #b8ebcd;
-  color: #13271b;
-  font-weight: 600;
-  cursor: pointer;
-}
-button:disabled {
-  opacity: 0.55;
-  cursor: wait;
-}
-:focus-visible {
-  outline: 2px solid #b8ebcd;
-  outline-offset: 4px;
-}
+@import "./common/ui/theme.css";
+@import "./common/ui/dashboard.css";
+@import "./common/ui/scenery.css";
+@import "./common/ui/refinements.css";

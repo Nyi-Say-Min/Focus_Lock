@@ -1,7 +1,11 @@
+import { Button, Card, NumberInput } from "./common/ui";
 import { useEffect, useState } from "react";
 import type { Settings } from "../../shared/types";
+import { Landscape, Sprite } from "./common/ui/Scenery";
+import { Icon } from "./common/ui/Icon";
 import SessionCard from "./SessionCard";
 import ApplicationsCard from "./ApplicationsCard";
+import { DashboardWorld, WebsitesCard } from "./common/ui/DashboardWorld";
 
 export default function App() {
   const [value, setValue] = useState<Settings | null>(null);
@@ -47,76 +51,78 @@ export default function App() {
     }
   }
   return (
-    <main className="mx-auto max-w-2xl px-8 py-8">
-      <header className="mb-8 flex items-center justify-between">
-        <span className="font-mono text-xl font-bold tracking-tight">
-          ▣ FocusLock
-        </span>
-        <span className="badge">DESKTOP / 01</span>
-      </header>
-      <section className="panel mb-6">
-        <span className="badge">YOUR SPACE TO FOCUS</span>
-        <h1 className="mt-5 text-4xl font-semibold">
-          A little less distraction.
-        </h1>
-        <p className="mt-4 text-stone-400">
-          Choose your defaults. Make room for what matters.
-        </p>
-      </section>
-      <SessionCard />
+    <DashboardWorld>
+      <SessionCard idleMinutes={value?.allowanceMinutes} />
       <ApplicationsCard />
-      <form
-        className="panel"
+      <WebsitesCard />
+      <Card
+        as="form"
+        id="settings"
+        tabIndex={-1}
         onSubmit={(event) => {
           event.preventDefault();
           void save();
         }}
       >
-        <h2 className="text-lg font-semibold">Your rhythm</h2>
-        <p className="mb-6 mt-1 text-sm text-stone-400">
+        <h2>
+          <Icon name="settings" />
+          Session settings
+        </h2>
+        <p className="settings-description">
           Default durations for future sessions.
         </p>
+        <Sprite kind="flower" className="settings-flower" />
+        <div className="settings-scenery" aria-hidden="true">
+          <Landscape variant="settings" />
+          <p className="wooden-sign">
+            Discipline
+            <br />
+            creates
+            <br />
+            freedom
+          </p>
+        </div>
         {value ? (
           <>
-            <div className="grid grid-cols-2 gap-6">
+            <div className="duration-fields">
               {(["allowanceMinutes", "blockMinutes"] as const).map((key) => (
-                <label key={key} className="text-sm">
-                  {key === "allowanceMinutes"
-                    ? "Social allowance"
-                    : "Blocking period"}
-                  <input
-                    type="number"
-                    min="1"
-                    max="1440"
-                    step="1"
-                    required
+                <div key={key} className="text-sm">
+                  <Icon name="clock" />
+                  {key === "allowanceMinutes" ? "Social time" : "Break time"}
+                  <NumberInput
+                    label={
+                      key === "allowanceMinutes"
+                        ? "Social allowance"
+                        : "Blocking period"
+                    }
                     disabled={busy}
                     value={Number.isNaN(value[key]) ? "" : value[key]}
-                    onChange={(event) =>
-                      setValue({ ...value, [key]: event.target.valueAsNumber })
+                    onValueChange={(number) =>
+                      setValue({ ...value, [key]: number })
                     }
                   />
                   <span className="text-xs text-stone-400">minutes</span>
-                </label>
+                </div>
               ))}
             </div>
-            <button disabled={busy} className="mt-6">
-              {busy ? "Saving…" : "Save defaults"}
-            </button>
+            <Button
+              type="submit"
+              aria-label="Save defaults"
+              disabled={busy}
+              className="save-settings"
+            >
+              {busy ? "Saving…" : "Save"}
+            </Button>
           </>
         ) : (
-          <button type="button" disabled={busy} onClick={() => void load()}>
+          <Button type="button" disabled={busy} onClick={() => void load()}>
             {busy ? "Loading…" : "Retry loading"}
-          </button>
+          </Button>
         )}
         <p role="status" className="mt-3 min-h-5 text-sm text-emerald-200">
           {message}
         </p>
-      </form>
-      <footer className="mt-6 text-center text-xs text-stone-400">
-        Close the window to keep FocusLock in your tray. Quit from the tray
-        menu.
-      </footer>
-    </main>
+      </Card>
+    </DashboardWorld>
   );
 }

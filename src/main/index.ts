@@ -55,7 +55,7 @@ function createOverlay(interactive = false) {
 
 function openDashboard() {
   dashboard.show();
-  dashboard.restore();
+  if (dashboard.isMinimized()) dashboard.restore();
   dashboard.focus();
 }
 if (!app.requestSingleInstanceLock()) app.quit();
@@ -87,10 +87,10 @@ else {
         }),
       );
       dashboard = new BrowserWindow({
-        width: 900,
-        height: 800,
-        minWidth: 520,
-        minHeight: 550,
+        width: 1200,
+        height: 900,
+        minWidth: 960,
+        minHeight: 640,
         show: false,
         backgroundColor: "#111714",
         title: "FocusLock",
@@ -149,6 +149,7 @@ else {
         dashboard.loadURL(page("index.html")),
         createOverlay(),
       ]);
+      dashboard.maximize();
       openDashboard();
     })
     .catch(() => {
