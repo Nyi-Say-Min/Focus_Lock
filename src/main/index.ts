@@ -12,6 +12,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { join } from "node:path";
 import { settings } from "./settings";
 import { installSessions } from "./session-runtime";
+import { installWebsites } from "./website-runtime";
 import { installApplications } from "./application-runtime";
 
 let dashboard: BrowserWindow,
@@ -143,6 +144,7 @@ else {
         ]),
       );
       tray.on("double-click", openDashboard);
+      installWebsites(dashboard, page("index.html"));
       const readApps = installApplications(dashboard, page("index.html"));
       installSessions(dashboard, tray, page("index.html"), readApps);
       await Promise.all([

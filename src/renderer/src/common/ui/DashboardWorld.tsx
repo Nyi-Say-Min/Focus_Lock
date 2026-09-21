@@ -1,6 +1,6 @@
 import { Icon } from "./Icon";
 import { useState, type ReactNode } from "react";
-import { Button, Card, Input } from "./index";
+import { Button } from "./index";
 import { WorldDefinitions, WorldBackdrop, Sprite } from "./Scenery";
 
 export function DashboardWorld({ children }: { children: ReactNode }) {
@@ -58,32 +58,6 @@ export function DashboardWorld({ children }: { children: ReactNode }) {
         <span>FocusLock — A calmer, brighter you —</span>
       </footer>
     </main>
-  );
-}
-
-export function WebsitesCard() {
-  return (
-    <Card id="websites" tabIndex={-1} aria-label="Websites">
-      <h2>
-        <Icon name="globe" />
-        Websites
-      </h2>
-      <Input type="search" disabled aria-label="Search websites" placeholder="Search or enter a website…" />
-      <div className="website-tiles">
-        {["YouTube", "Facebook", "X", "Reddit"].map((name) => (
-          <div key={name}>
-            <span className="preview-star" aria-hidden="true">
-              ☆
-            </span>
-            <AppArtwork name={name} />
-            {name}
-          </div>
-        ))}
-      </div>
-      <Input disabled aria-label="Website address" placeholder="Enter website address (e.g. example.com)" />
-      <Button disabled>＋ Add site</Button>
-      <p role="status">Website blocking coming in a later phase.</p>
-    </Card>
   );
 }
 

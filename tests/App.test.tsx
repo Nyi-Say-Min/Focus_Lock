@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
+import { websitesMock } from "./websites-mock";
 import { afterEach, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import App from "../src/renderer/src/App";
@@ -36,6 +37,7 @@ it("loads settings and reports save success only after persistence succeeds", as
     .mockResolvedValueOnce({ ok: false, error: "STORAGE_FAILED" })
     .mockResolvedValueOnce({ ok: true, value });
   window.focusLock = {
+    websites: websitesMock,
     applications,
     session,
     settings: { get: vi.fn().mockResolvedValue({ ok: true, value }), update },
@@ -61,6 +63,7 @@ it("loads settings and reports save success only after persistence succeeds", as
 
 it("offers a retry after the bridge fails to load", async () => {
   window.focusLock = {
+    websites: websitesMock,
     applications,
     session,
     settings: {

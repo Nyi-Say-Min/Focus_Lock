@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
+import { websitesMock } from "./websites-mock";
 import { afterEach, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import ApplicationsPicker from "../src/renderer/src/ApplicationsPicker";
@@ -23,6 +24,7 @@ it("searches names, disables duplicates, adds selected executables and offers br
     remove: vi.fn(),
   };
   window.focusLock = {
+    websites: websitesMock,
     applications,
     settings: { get: vi.fn(), update: vi.fn() },
     session: { getCurrent: vi.fn(), start: vi.fn(), stop: vi.fn() },

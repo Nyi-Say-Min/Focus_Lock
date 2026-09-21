@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer } from "electron";
+import type { WebsitesAPI } from "../shared/websites";
 import type { SettingsAPI } from "../shared/types";
 import type { SessionAPI } from "../shared/session";
 import type { ApplicationsAPI } from "../shared/applications";
@@ -22,8 +23,17 @@ const applications: ApplicationsAPI = {
     ipcRenderer.invoke("applications:setEnabled", id, enabled),
   remove: (id) => ipcRenderer.invoke("applications:remove", id),
 };
+const websites: WebsitesAPI = {
+  list: () => ipcRenderer.invoke("websites:request", "list", []),
+  add: (address) => ipcRenderer.invoke("websites:request", "add", [address]),
+  setEnabled: (domain, enabled) =>
+    ipcRenderer.invoke("websites:request", "setEnabled", [domain, enabled]),
+  remove: (domain) =>
+    ipcRenderer.invoke("websites:request", "remove", [domain]),
+};
 contextBridge.exposeInMainWorld("focusLock", {
   settings,
   session,
   applications,
+  websites,
 });

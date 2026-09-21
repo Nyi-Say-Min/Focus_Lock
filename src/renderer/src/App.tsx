@@ -5,7 +5,8 @@ import { Landscape, Sprite } from "./common/ui/Scenery";
 import { Icon } from "./common/ui/Icon";
 import SessionCard from "./SessionCard";
 import ApplicationsCard from "./ApplicationsCard";
-import { DashboardWorld, WebsitesCard } from "./common/ui/DashboardWorld";
+import WebsitesCard from "./WebsitesCard";
+import { DashboardWorld } from "./common/ui/DashboardWorld";
 
 export default function App() {
   const [value, setValue] = useState<Settings | null>(null);

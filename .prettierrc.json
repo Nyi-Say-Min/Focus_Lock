@@ -1,6 +1,10 @@
 {
   "overrides": [
     {
+      "files": ["**/*website*.ts", "**/Websites*.tsx", "**/websites.css"],
+      "options": { "printWidth": 120, "objectWrap": "collapse" }
+    },
+    {
       "files": ["src/renderer/src/common/ui/*", "tests/ui.test.tsx"],
       "options": { "printWidth": 120, "objectWrap": "collapse" }
     },

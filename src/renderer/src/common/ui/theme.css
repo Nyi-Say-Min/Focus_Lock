@@ -129,7 +129,7 @@ input:disabled {
   background-size: calc(var(--unit, 12px) * 1.6), 100%;
   padding-left: calc(var(--unit, 12px) * 2.7);
 }
-#websites > .pipe-input:last-of-type,
+#websites .website-add .pipe-input,
 .number-stepper .pipe-input {
   margin: 0;
   padding: 2px;
@@ -139,19 +139,19 @@ input:disabled {
     inset 2px 2px #fff8df,
     1px 1px #715b40;
 }
-#websites > .pipe-input:last-of-type::before,
-#websites > .pipe-input:last-of-type::after,
+#websites .website-add .pipe-input::before,
+#websites .website-add .pipe-input::after,
 .number-stepper .pipe-input::before,
 .number-stepper .pipe-input::after {
   display: none;
 }
-#websites > .pipe-input:last-of-type input,
+#websites .website-add .pipe-input input,
 .number-stepper input {
   background: linear-gradient(#fff9e7, #f8efda);
   border-color: #ae9976;
   box-shadow: none;
 }
-#websites > .pipe-input:last-of-type input {
+#websites .website-add .pipe-input input {
   font-size: calc(var(--unit) * 1.4);
   padding-left: 8px;
 }
