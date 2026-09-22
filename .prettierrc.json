@@ -1,7 +1,12 @@
 {
   "overrides": [
     {
-      "files": ["**/*website*.ts", "**/Websites*.tsx", "**/websites.css"],
+      "files": [
+        "**/*website*.ts",
+        "**/*hosts*.ts",
+        "**/Websites*.tsx",
+        "**/websites.css"
+      ],
       "options": { "printWidth": 120, "objectWrap": "collapse" }
     },
     {
