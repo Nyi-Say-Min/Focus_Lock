@@ -1,8 +1,10 @@
-param([string]$FixtureRoot)
+param([string]$FixtureRoot, [IO.TextReader]$Reader, [IO.TextWriter]$Writer)
 $ErrorActionPreference = 'Stop'
 [Console]::InputEncoding = New-Object System.Text.UTF8Encoding($false)
 [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false)
 $utf8 = New-Object System.Text.UTF8Encoding($false, $true)
+if (-not $Reader) { $Reader = [Console]::In }
+if (-not $Writer) { $Writer = [Console]::Out }
 $mutex = $null
 $locked = $false
 function Assert-Regular([string]$path) {
@@ -71,8 +73,8 @@ try {
     try { $locked = $mutex.WaitOne(0) } catch [Threading.AbandonedMutexException] { $locked = $true }
     if (-not $locked) { throw 'HOSTS_HELPER_BUSY' }
     $snapshot = $null
-    [Console]::WriteLine('{"ready":true}')
-    while ($null -ne ($line = [Console]::ReadLine())) {
+    $Writer.WriteLine('{"ready":true}')
+    while ($null -ne ($line = $Reader.ReadLine())) {
         try {
             if ($line.Length -gt 12582912) { throw 'HOSTS_REQUEST_TOO_LARGE' }
             $request = $line | ConvertFrom-Json
@@ -117,9 +119,9 @@ try {
                 'clearJournal' { Assert-Regular $journalPath; [IO.File]::Delete($journalPath) }
                 default { throw 'HOSTS_UNKNOWN_OPERATION' }
             }
-            [Console]::WriteLine((ConvertTo-Json -InputObject @{ ok = $true; value = $value } -Depth 8 -Compress))
-        } catch { [Console]::WriteLine((ConvertTo-Json -InputObject @{ error = $_.Exception.Message } -Compress)) }
+            $Writer.WriteLine((ConvertTo-Json -InputObject @{ ok = $true; value = $value } -Depth 8 -Compress))
+        } catch { $Writer.WriteLine((ConvertTo-Json -InputObject @{ error = $_.Exception.Message } -Compress)) }
     }
-} catch { [Console]::WriteLine((ConvertTo-Json -InputObject @{ error = $_.Exception.Message } -Compress)); exit 1 }
+} catch { $Writer.WriteLine((ConvertTo-Json -InputObject @{ error = $_.Exception.Message } -Compress)); exit 1 }
 finally { if ($locked) { $mutex.ReleaseMutex() }; if ($mutex) { $mutex.Dispose() } }
 
