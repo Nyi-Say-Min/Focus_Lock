@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>FocusLock</title>
+    <link rel="stylesheet" href="theme.css" />
+  </head>
+  <body>
+    <main>
+      <h1 id="heading">FocusLock</h1>
+      <p id="site"></p>
+      <p id="status">Checking connection…</p>
+      <form id="pair">
+        <p>In the desktop tray menu, choose “Copy Chrome pairing code”. Paste it here.</p>
+        <label for="token">Pairing code</label><input id="token" type="password" autocomplete="off" required />
+        <button>Pair Chrome</button>
+      </form>
+      <button id="return" hidden disabled>Return to website</button>
+      <p>Selected tabs become break pages. Their URLs stay in Chrome.</p>
+    </main>
+    <script src="page.js"></script>
+  </body>
+</html>

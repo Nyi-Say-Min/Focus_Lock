@@ -136,9 +136,11 @@ else {
       );
       tray.setToolTip("FocusLock • No active session");
       let restoreWebsites = () => Promise.resolve();
+      let pairChrome = () => {};
       tray.setContextMenu(
         Menu.buildFromTemplate([
           { label: "Open Dashboard", click: openDashboard },
+          { label: "Copy Chrome pairing code", click: () => pairChrome() },
           { label: "Session status: hover over tray icon", enabled: false },
           {
             label: "Restore website access",
@@ -153,12 +155,14 @@ else {
       tray.on("double-click", openDashboard);
       installWebsites(dashboard, page("index.html"));
       const readApps = installApplications(dashboard, page("index.html"));
-      restoreWebsites = installSessions(
+      const sessions = installSessions(
         dashboard,
         tray,
         page("index.html"),
         readApps,
       );
+      restoreWebsites = sessions.restore;
+      pairChrome = sessions.pair;
       await Promise.all([
         dashboard.loadURL(page("index.html")),
         createOverlay(),

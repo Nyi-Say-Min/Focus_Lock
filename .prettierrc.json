@@ -2,6 +2,14 @@
   "overrides": [
     {
       "files": [
+        "resources/chrome/**",
+        "src/main/chrome-bridge.ts",
+        "tests/chrome*.ts"
+      ],
+      "options": { "printWidth": 120, "objectWrap": "collapse" }
+    },
+    {
+      "files": [
         "**/*website*.ts",
         "**/*hosts*.ts",
         "**/Websites*.tsx",

@@ -1,4 +1,6 @@
-import { app, ipcMain, powerMonitor, type BrowserWindow, type Tray } from "electron";
+import { app, clipboard, ipcMain, powerMonitor, type BrowserWindow, type Tray } from "electron";
+import { randomBytes } from "node:crypto";
+import { createChromeBridge } from "./chrome-bridge";
 import Store from "electron-store";
 import type { Session } from "../shared/session";
 import { createSessionEngine } from "./session";
@@ -12,6 +14,8 @@ import { openElevatedHosts } from "./hosts-elevation";
 
 export function installSessions(window: BrowserWindow, tray: Tray, url: string, readApps: () => Application[]) {
   const blocker = createBlocker(readApps);
+  const token = new Store({ name: "browser-link", defaults: { token: randomBytes(32).toString("hex") } }).get("token");
+  const chrome = createChromeBridge(token);
   const sites = websiteStore(),
     recovery = new Store({ name: "website-recovery", defaults: { needed: false } });
   const websites = createWebsiteBlocker(
@@ -37,7 +41,14 @@ export function installSessions(window: BrowserWindow, tray: Tray, url: string, 
   });
   const refresh = () => {
     const result = engine("getCurrent");
-    const blockingError = [blocker.update(result), websites.update(result)].filter(Boolean).join(" ");
+    const selected = sites("list", []);
+    const blockingError = [
+      blocker.update(result),
+      websites.update(result),
+      chrome.update(result, selected.ok ? selected.value : []),
+    ]
+      .filter(Boolean)
+      .join(" ");
     const value = result.ok ? result.value : null;
     const end = value?.status === "active" ? value.allowanceEndsAt : value?.blockEndsAt;
     const seconds = result.ok && end ? Math.max(0, Math.ceil((end - result.now) / 1000)) : 0;
@@ -72,8 +83,9 @@ export function installSessions(window: BrowserWindow, tray: Tray, url: string, 
   app.once("before-quit", () => {
     blocker.close();
     websites.close();
+    chrome.close();
     clearInterval(timer);
     powerMonitor.removeListener("resume", refresh);
   });
-  return () => websites.recover();
+  return { restore: () => websites.recover(), pair: () => clipboard.writeText(token) };
 }

@@ -1,0 +1,15 @@
+{
+  "manifest_version": 3,
+  "name": "FocusLock Chrome Companion",
+  "version": "0.1.0",
+  "minimum_chrome_version": "120",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAmtgyi+rK38owd5ZLZ/4Aw9RyIvrUbcnK/Ib+oaKuY9b9q914jvyAcZlqeFqpqF3niGF/4hOd7qzaPFarEJnNbQDa313R/QeBAtRpOATV2yryvsFpFXYtzyMcOnwM8a6PY5+nbKZzFnWar3ivPTFTT1pZa8bgsR1LhUKenNPKACLRGQxhRxebgJ/feJSiib5zxohA4qUHVWLuB2p3wsbWvbKgX0DrB0W075hGxp+tpb0fs1QaMpMeT//w1z0BViV0Rg0oCb6IXLkZHaC0VzpXxAQzzSB8UVdeDNKuuA4bRecfXn2h/LtYNiKbhnkSJ7dmPE8BGeSu/BhTFrMn08g/FwIDAQAB",
+  "permissions": ["tabs", "storage", "alarms", "declarativeNetRequest"],
+  "host_permissions": ["http://*/*", "https://*/*"],
+  "background": { "service_worker": "background.js" },
+  "action": { "default_title": "FocusLock", "default_popup": "page.html" },
+  "options_page": "page.html",
+  "web_accessible_resources": [
+    { "resources": ["page.html", "page.js", "theme.css"], "matches": ["http://*/*", "https://*/*"] }
+  ]
+}
