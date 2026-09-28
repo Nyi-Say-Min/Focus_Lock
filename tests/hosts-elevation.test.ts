@@ -27,6 +27,11 @@ afterEach(async () => {
   for (const root of roots.splice(0)) await rm(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
 });
 describe.skipIf(process.platform !== "win32")("authenticated helper transport (no UAC; temp fixtures)", () => {
+  it("reports missing packaged helper files before launching elevation", async () => {
+    await expect(openElevatedHosts(join(resources, "missing"), new AbortController().signal)).rejects.toThrow(
+      "HOSTS_HELPER_MISSING",
+    );
+  });
   it("authenticates both peers, blocks, disconnects, and recovers through a fresh helper", async () => {
     const { root, controller } = await fixture(),
       path = join(root, "hosts");
@@ -46,6 +51,33 @@ describe.skipIf(process.platform !== "win32")("authenticated helper transport (n
     controller.abort();
     await expect(io.read()).rejects.toThrow();
   }, 15000);
+  it.each(["expiry", "disconnect"])(
+    "restores without app-side release on %s",
+    async (reason) => {
+      const { root, controller } = await fixture(),
+        path = join(root, "hosts");
+      const original = await readFile(path),
+        io = await openElevatedHosts(resources, controller.signal, root);
+      await createHostsBlocker(io).apply(["youtube.com"], Date.now() + (reason === "expiry" ? 1200 : 60000));
+      if (reason === "disconnect") io.close();
+      await vi.waitFor(async () => expect(await readFile(path)).toEqual(original), { timeout: 5000, interval: 100 });
+      await expect(readFile(join(root, "journal.json"))).rejects.toMatchObject({ code: "ENOENT" });
+      io.close();
+    },
+    15000,
+  );
+  it("keeps edited rules and journal for manual recovery after disconnect", async () => {
+    const { root, controller } = await fixture(),
+      path = join(root, "hosts");
+    const io = await openElevatedHosts(resources, controller.signal, root);
+    await createHostsBlocker(io).apply(["youtube.com"], Date.now() + 60000);
+    const edited = (await readFile(path, "utf8")).replace("0.0.0.0 youtube.com", "127.0.0.2 youtube.com");
+    await writeFile(path, edited);
+    io.close();
+    await expect(openElevatedHosts(resources, controller.signal, root)).rejects.toThrow();
+    expect(await readFile(path, "utf8")).toBe(edited);
+    expect(await readFile(join(root, "journal.json"), "utf8")).toContain("youtube.com");
+  }, 15000);
   it("does not launch when already cancelled", async () => {
     const controller = new AbortController();
     controller.abort();
@@ -64,9 +96,10 @@ describe.skipIf(process.platform !== "win32")("authenticated helper transport (n
         secret = randomBytes(32).toString("hex");
       const q = (s: string) => `'${s.replaceAll("'", "''")}'`;
       const command = `& ${q(join(resources, "hosts-elevated.ps1"))} -PipeName '${pipe}' -Secret '${secret}' -CallerSid ([Security.Principal.WindowsIdentity]::GetCurrent().User.Value) -FixtureRoot ${q(root)}`;
+      const encodedCommand = Buffer.from(command, "utf16le").toString("base64");
       const child = spawn(
         "powershell.exe",
-        ["-NoProfile", "-NonInteractive", "-EncodedCommand", Buffer.from(command, "utf16le").toString("base64")],
+        ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "RemoteSigned", "-EncodedCommand", encodedCommand],
         { windowsHide: true, stdio: "ignore" },
       );
       let client: Socket | undefined;

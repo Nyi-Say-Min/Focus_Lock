@@ -83,7 +83,7 @@ export default function SessionCard({ idleMinutes = 25 }: { idleMinutes?: number
         {running ? time.replace(/^00:/, "") : `${idleMinutes}:00`}
       </p>
       <p className="session-note">
-        Breaks forcibly close selected apps. Save work first. Stop or quit to end blocking.
+        Breaks close selected apps and apply website rules after Windows approval. Save work first. Stop to unblock.
       </p>
       <Button disabled={busy || !snapshot?.ok} onClick={() => void request(running ? "stop" : "start")}>
         {busy ? "Please wait…" : running ? "Stop session" : "Start session"}

@@ -5,9 +5,25 @@ import { createSessionEngine } from "./session";
 import { settings } from "./settings";
 import type { Application } from "../shared/applications";
 import { createBlocker } from "./process-blocker";
+import { join } from "node:path";
+import { websiteStore } from "./websites";
+import { createWebsiteBlocker } from "./hosts-session";
+import { openElevatedHosts } from "./hosts-elevation";
 
 export function installSessions(window: BrowserWindow, tray: Tray, url: string, readApps: () => Application[]) {
   const blocker = createBlocker(readApps);
+  const sites = websiteStore(),
+    recovery = new Store({ name: "website-recovery", defaults: { needed: false } });
+  const websites = createWebsiteBlocker(
+    () => {
+      const result = sites("list", []);
+      if (!result.ok) throw Error(result.error);
+      return result.value;
+    },
+    (signal) => openElevatedHosts(join(app.isPackaged ? process.resourcesPath : app.getAppPath(), "resources"), signal),
+    (needed) => recovery.set("needed", needed),
+  );
+  if (recovery.get("needed")) void websites.recover();
   let store: Store<{ current: Session | null }>;
   const open = () =>
     (store ??= new Store<{ current: Session | null }>({
@@ -21,7 +37,7 @@ export function installSessions(window: BrowserWindow, tray: Tray, url: string, 
   });
   const refresh = () => {
     const result = engine("getCurrent");
-    const blockingError = blocker.update(result);
+    const blockingError = [blocker.update(result), websites.update(result)].filter(Boolean).join(" ");
     const value = result.ok ? result.value : null;
     const end = value?.status === "active" ? value.allowanceEndsAt : value?.blockEndsAt;
     const seconds = result.ok && end ? Math.max(0, Math.ceil((end - result.now) / 1000)) : 0;
@@ -55,7 +71,9 @@ export function installSessions(window: BrowserWindow, tray: Tray, url: string, 
   powerMonitor.on("resume", refresh);
   app.once("before-quit", () => {
     blocker.close();
+    websites.close();
     clearInterval(timer);
     powerMonitor.removeListener("resume", refresh);
   });
+  return () => websites.recover();
 }

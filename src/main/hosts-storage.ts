@@ -9,7 +9,7 @@ import type { HostsStorage } from "./hosts-blocker";
 export function openHostsStorage(script: string, fixtureRoot?: string): Promise<HostsStorage & { close(): void }> {
   if (process.platform !== "win32") return Promise.reject(Error("HOSTS_WINDOWS_ONLY"));
 
-  const args = ["-NoProfile", "-NonInteractive", "-File", script];
+  const args = ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "RemoteSigned", "-File", script];
   if (fixtureRoot) args.push("-FixtureRoot", fixtureRoot);
   const child = spawn(
     join(process.env.SystemRoot || "C:\\Windows", "System32/WindowsPowerShell/v1.0/powershell.exe"),

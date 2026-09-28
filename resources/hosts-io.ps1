@@ -1,4 +1,4 @@
-param([string]$FixtureRoot, [IO.TextReader]$Reader, [IO.TextWriter]$Writer)
+param([string]$FixtureRoot, [IO.TextReader]$Reader, [IO.TextWriter]$Writer, [switch]$Watchdog)
 $ErrorActionPreference = 'Stop'
 [Console]::InputEncoding = New-Object System.Text.UTF8Encoding($false)
 [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false)
@@ -33,6 +33,54 @@ function Write-Atomic([string]$path, [byte[]]$bytes) {
         if ([IO.File]::Exists($path)) { [IO.File]::Replace($temp, $path, [NullString]::Value, $false) }
         else { [IO.File]::Move($temp, $path) }
     } finally { if ([IO.File]::Exists($temp)) { [IO.File]::Delete($temp) } }
+}
+function Read-Journal {
+    Assert-Regular $journalPath
+    if (-not [IO.File]::Exists($journalPath)) { return $null }
+    $j = $utf8.GetString((Read-Bytes $journalPath)) | ConvertFrom-Json
+    if ($j.version -ne 1 -or $j.expiresAt -le 0 -or @($j.fragments).Count -lt 1 -or @($j.fragments).Count -gt 2) { throw 'HOSTS_INVALID_JOURNAL' }
+    foreach ($fragment in $j.fragments) {
+        if ($fragment -isnot [string] -or $fragment.Length -gt 120000 -or $fragment -cnotmatch '\A(?:\r?\n)?# FocusLock BEGIN v1\r?\n(?:(?:0\.0\.0\.0|::) [a-z0-9.-]+\r?\n){1,400}# FocusLock END v1\r?\n\z') { throw 'HOSTS_INVALID_JOURNAL' }
+    }
+    return $j
+}
+function Flush-Dns {
+    if (-not $FixtureRoot) {
+        & (Join-Path ([Environment]::GetFolderPath('System')) 'ipconfig.exe') /flushdns | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw 'HOSTS_DNS_FLUSH_FAILED' }
+    }
+}
+function Restore-Hosts {
+    $j = Read-Journal
+    if (-not $j) { return }
+    $data = Read-Hosts
+    $clean = $data.text
+    foreach ($fragment in $j.fragments) { if ($clean.Contains($fragment)) { $clean = $clean.Remove($clean.IndexOf($fragment), $fragment.Length); break } }
+    if ($clean.Contains('# FocusLock BEGIN v1') -or $clean.Contains('# FocusLock END v1')) { throw 'HOSTS_MANAGED_SECTION_CHANGED' }
+    if ($clean -cne $data.text) {
+        $guard = [IO.File]::Open($hostsPath, 'Open', 'Read', ([IO.FileShare]::Read -bor [IO.FileShare]::Delete))
+        try {
+            if ([Convert]::ToBase64String((Read-Bytes $hostsPath)) -cne [Convert]::ToBase64String($data.bytes)) { throw 'HOSTS_CONFLICT' }
+            Write-Atomic $hostsPath ($data.encoding.GetBytes($clean))
+        } finally { $guard.Dispose() }
+    }
+    Flush-Dns
+    [IO.File]::Delete($journalPath)
+}
+function Read-Hosts {
+    $bytes = Read-Bytes $hostsPath
+    if ($bytes.Length -ge 4 -and [BitConverter]::ToString($bytes, 0, 4) -in @('FF-FE-00-00', '00-00-FE-FF')) { $bytes = $null; throw 'HOSTS_UNSUPPORTED_ENCODING' }
+    $encoding = $utf8
+    if ($bytes.Length -ge 2 -and $bytes[0] -eq 255 -and $bytes[1] -eq 254) { $encoding = New-Object Text.UnicodeEncoding($false, $false, $true) }
+    elseif ($bytes.Length -ge 2 -and $bytes[0] -eq 254 -and $bytes[1] -eq 255) { $encoding = New-Object Text.UnicodeEncoding($true, $false, $true) }
+    try { $text = $encoding.GetString($bytes) } catch {
+        if ($encoding -ne $utf8) { $bytes = $null; throw 'HOSTS_UNSUPPORTED_ENCODING' }
+        $encoding = [Text.Encoding]::Default
+        $text = $encoding.GetString($bytes)
+    }
+    if ($text.Contains([char]0)) { $bytes = $null; throw 'HOSTS_UNSUPPORTED_ENCODING' }
+    if ([Convert]::ToBase64String($encoding.GetBytes($text)) -cne [Convert]::ToBase64String($bytes)) { throw 'HOSTS_UNSUPPORTED_ENCODING' }
+    return @{ bytes = $bytes; text = $text; encoding = $encoding }
 }
 try {
     if ($FixtureRoot) {
@@ -73,29 +121,31 @@ try {
     try { $locked = $mutex.WaitOne(0) } catch [Threading.AbandonedMutexException] { $locked = $true }
     if (-not $locked) { throw 'HOSTS_HELPER_BUSY' }
     $snapshot = $null
+    if ($Watchdog) { Restore-Hosts }
     $Writer.WriteLine('{"ready":true}')
-    while ($null -ne ($line = $Reader.ReadLine())) {
+    while ($true) {
+        if ($Watchdog) {
+            $incoming = $Reader.ReadLineAsync()
+            while (-not $incoming.Wait(500)) {
+                $j = Read-Journal
+                if ($j -and $j.expiresAt -le [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()) { Restore-Hosts }
+            }
+            $line = $incoming.Result
+        } else { $line = $Reader.ReadLine() }
+        if ($null -eq $line) { break }
         try {
             if ($line.Length -gt 12582912) { throw 'HOSTS_REQUEST_TOO_LARGE' }
             $request = $line | ConvertFrom-Json
             $value = $null
             switch ($request.op) {
                 'read' {
-                    $snapshot = Read-Bytes $hostsPath
-                    if ($snapshot.Length -ge 4 -and [BitConverter]::ToString($snapshot, 0, 4) -in @('FF-FE-00-00', '00-00-FE-FF')) { $snapshot = $null; throw 'HOSTS_UNSUPPORTED_ENCODING' }
-                    $encoding = $utf8
-                    if ($snapshot.Length -ge 2 -and $snapshot[0] -eq 255 -and $snapshot[1] -eq 254) { $encoding = New-Object Text.UnicodeEncoding($false, $false, $true) }
-                    elseif ($snapshot.Length -ge 2 -and $snapshot[0] -eq 254 -and $snapshot[1] -eq 255) { $encoding = New-Object Text.UnicodeEncoding($true, $false, $true) }
-                    try { $value = $encoding.GetString($snapshot) } catch {
-                        if ($encoding -ne $utf8) { $snapshot = $null; throw 'HOSTS_UNSUPPORTED_ENCODING' }
-                        $encoding = [Text.Encoding]::Default
-                        $value = $encoding.GetString($snapshot)
-                    }
-                    if ($value.Contains([char]0)) { $snapshot = $null; throw 'HOSTS_UNSUPPORTED_ENCODING' }
-                    if ([Convert]::ToBase64String($encoding.GetBytes($value)) -cne [Convert]::ToBase64String($snapshot)) { throw 'HOSTS_UNSUPPORTED_ENCODING' }
-                    $previous = $value
+                    $data = Read-Hosts; $snapshot = $data.bytes; $encoding = $data.encoding; $value = $data.text; $previous = $value
                 }
                 'replace' {
+                    if ($Watchdog) {
+                        $j = Read-Journal
+                        if ($j -and $j.expiresAt -le [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()) { Restore-Hosts; throw 'HOSTS_LEASE_EXPIRED' }
+                    }
                     if ($null -eq $snapshot -or $request.expected -isnot [string] -or $request.next -isnot [string] -or $request.expected -cne $previous) { throw 'HOSTS_CONFLICT' }
                     if ($request.next.Length -gt 2097152) { throw 'HOSTS_FILE_TOO_LARGE' }
                     Assert-Regular $hostsPath
@@ -104,6 +154,7 @@ try {
                     try {
                         if ([Convert]::ToBase64String((Read-Bytes $hostsPath)) -cne [Convert]::ToBase64String($snapshot)) { throw 'HOSTS_CONFLICT' }
                         Write-Atomic $hostsPath ($encoding.GetBytes($request.next))
+                        if ($Watchdog) { Flush-Dns }
                         $snapshot = $null
                     } finally { $guard.Dispose() }
                 }
@@ -123,5 +174,7 @@ try {
         } catch { $Writer.WriteLine((ConvertTo-Json -InputObject @{ error = $_.Exception.Message } -Compress)) }
     }
 } catch { $Writer.WriteLine((ConvertTo-Json -InputObject @{ error = $_.Exception.Message } -Compress)); exit 1 }
-finally { if ($locked) { $mutex.ReleaseMutex() }; if ($mutex) { $mutex.Dispose() } }
-
+finally {
+    try { if ($Watchdog -and $locked) { Restore-Hosts } }
+    finally { if ($locked) { $mutex.ReleaseMutex() }; if ($mutex) { $mutex.Dispose() } }
+}

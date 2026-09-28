@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { existsSync } from "node:fs";
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { connect, type Socket } from "node:net";
 import { join } from "node:path";
@@ -12,6 +13,8 @@ const encoded = (value: string) => Buffer.from(value, "utf16le").toString("base6
 export function openElevatedHosts(resources: string, signal: AbortSignal, fixtureRoot?: string) {
   if (process.platform !== "win32") return Promise.reject(Error("HOSTS_WINDOWS_ONLY"));
   if (signal.aborted) return Promise.reject(Error("HOSTS_ELEVATION_CANCELLED"));
+  if (!["hosts-elevated.ps1", "hosts-io.ps1"].every((file) => existsSync(join(resources, file))))
+    return Promise.reject(Error("HOSTS_HELPER_MISSING"));
   const pipe = `FocusLock-${randomBytes(24).toString("hex")}`,
     secret = randomBytes(32).toString("hex");
   const executable = join(process.env.SystemRoot || "C:\\Windows", "System32/WindowsPowerShell/v1.0/powershell.exe");
@@ -19,13 +22,13 @@ export function openElevatedHosts(resources: string, signal: AbortSignal, fixtur
   const sid = "[Security.Principal.WindowsIdentity]::GetCurrent().User.Value";
   const command = fixtureRoot
     ? `${invocation}(${sid}) -FixtureRoot ${quote(fixtureRoot)}`
-    : `$sid = ${sid}; $code = ${quote(invocation)} + "'" + $sid + "'"; $b64 = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($code)); Start-Process -FilePath ${quote(executable)} -Verb RunAs -WindowStyle Hidden -ArgumentList ('-NoProfile -NonInteractive -EncodedCommand ' + $b64) -Wait`;
+    : `$sid = ${sid}; $code = ${quote(invocation)} + "'" + $sid + "'"; $b64 = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($code)); Start-Process -FilePath ${quote(executable)} -Verb RunAs -WindowStyle Hidden -ArgumentList ('-NoProfile -NonInteractive -ExecutionPolicy RemoteSigned -EncodedCommand ' + $b64) -Wait`;
   return new Promise<Awaited<ReturnType<typeof hostsStorageConnection>>>((resolve, reject) => {
-    const child = spawn(executable, ["-NoProfile", "-NonInteractive", "-EncodedCommand", encoded(command)], {
-      windowsHide: true,
-      stdio: "ignore",
-      env: { ...process.env, PSModulePath: join(executable, "..", "Modules") },
-    });
+    const child = spawn(
+      executable,
+      ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "RemoteSigned", "-EncodedCommand", encoded(command)],
+      { windowsHide: true, stdio: "ignore", env: { ...process.env, PSModulePath: join(executable, "..", "Modules") } },
+    );
     let socket: Socket | undefined, retry: ReturnType<typeof setTimeout>;
     let finished = false,
       authenticated = false;
@@ -35,7 +38,8 @@ export function openElevatedHosts(resources: string, signal: AbortSignal, fixtur
       clearTimeout(retry);
       signal.removeEventListener("abort", abort);
       socket?.destroy();
-      child.kill();
+      // Let an authenticated worker restore its journal after pipe EOF.
+      if (!authenticated) child.kill();
     };
     const fail = (error: Error) => {
       dispose();

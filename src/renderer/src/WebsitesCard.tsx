@@ -27,7 +27,7 @@ export default function WebsitesCard() {
       if (result.ok) {
         setItems(result.value);
         setLoaded(true);
-        setMessage(saved ? "Selection saved. Blocking is not active yet." : "");
+        setMessage(saved ? "Selection saved. Website rules apply during breaks after Windows approval." : "");
         return true;
       }
       setMessage(errors[result.error] ?? "Could not load or save websites. Please try again.");
@@ -120,7 +120,10 @@ export default function WebsitesCard() {
         </Button>
       )}
       <p role="status">
-        {message || (busy ? "Saving / loading websites…" : "Saved selections only — website blocking is not active.")}
+        {message ||
+          (busy
+            ? "Saving / loading websites…"
+            : "Breaks block these domains + www after Windows approval. Other subdomains may need adding.")}
       </p>
     </Card>
   );

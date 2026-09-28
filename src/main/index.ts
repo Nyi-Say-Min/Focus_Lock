@@ -135,10 +135,17 @@ else {
         nativeImage.createFromBitmap(pixels, { width: 16, height: 16 }),
       );
       tray.setToolTip("FocusLock • No active session");
+      let restoreWebsites = () => Promise.resolve();
       tray.setContextMenu(
         Menu.buildFromTemplate([
           { label: "Open Dashboard", click: openDashboard },
           { label: "Session status: hover over tray icon", enabled: false },
+          {
+            label: "Restore website access",
+            click: () => {
+              void restoreWebsites();
+            },
+          },
           { type: "separator" },
           { label: "Quit FocusLock", click: () => app.quit() },
         ]),
@@ -146,7 +153,12 @@ else {
       tray.on("double-click", openDashboard);
       installWebsites(dashboard, page("index.html"));
       const readApps = installApplications(dashboard, page("index.html"));
-      installSessions(dashboard, tray, page("index.html"), readApps);
+      restoreWebsites = installSessions(
+        dashboard,
+        tray,
+        page("index.html"),
+        readApps,
+      );
       await Promise.all([
         dashboard.loadURL(page("index.html")),
         createOverlay(),

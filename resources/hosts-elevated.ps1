@@ -33,7 +33,7 @@ try {
     $writer.WriteLine((Proof "server:$nonce"))
     if ((Read-Handshake) -cne (Proof "client:$nonce")) { throw 'HOSTS_AUTH_FAILED' }
     # No hosts or journal access occurs before both peers prove knowledge of the launch secret.
-    & (Join-Path $PSScriptRoot 'hosts-io.ps1') -FixtureRoot $FixtureRoot -Reader $reader -Writer $writer
+    & (Join-Path $PSScriptRoot 'hosts-io.ps1') -FixtureRoot $FixtureRoot -Reader $reader -Writer $writer -Watchdog
 } finally {
     if ($writer) { $writer.Dispose() }
     if ($reader) { $reader.Dispose() }
