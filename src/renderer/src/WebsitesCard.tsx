@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { popularSites, type Website, type WebsitesResult } from "../../shared/websites";
 import { Button, Card, Checkbox, Input } from "./common/ui";
 import { Icon } from "./common/ui/Icon";
+import BrowserSetup from "./BrowserSetup";
 const errors: Record<string, string> = {
   INVALID_DOMAIN: "Enter a domain or HTTP(S) URL without credentials or a custom port.",
   DUPLICATE_SITE: "That website is already listed.",
@@ -53,6 +54,7 @@ export default function WebsitesCard() {
         <Icon name="globe" />
         Websites
       </h2>
+      <BrowserSetup />
       <Input
         type="search"
         aria-label="Search websites"
@@ -123,7 +125,7 @@ export default function WebsitesCard() {
         {message ||
           (busy
             ? "Saving / loading websites…"
-            : "Breaks block these domains + www after Windows approval. Other subdomains may need adding.")}
+            : "Set up Chrome to block open tabs. Windows website rules also need administrator approval.")}
       </p>
     </Card>
   );

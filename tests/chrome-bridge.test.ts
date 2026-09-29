@@ -11,6 +11,7 @@ it("authenticates Chrome, rejects websites, exposes only active selections, and 
     if (!address || typeof address === "string") throw Error("No listener");
     const url = `http://127.0.0.1:${address.port}/state`;
     const headers = { Authorization: `Bearer ${"a".repeat(64)}`, Origin: chromeOrigin };
+    expect(bridge.status()).toBe("disconnected");
     expect((await fetch(url)).status).toBe(401);
     expect((await fetch(url, { headers: { ...headers, Origin: "https://reddit.com" } })).status).toBe(403);
     expect((await fetch(url, { headers, method: "POST" })).status).toBe(401);
@@ -24,9 +25,14 @@ it("authenticates Chrome, rejects websites, exposes only active selections, and 
       domains: ["reddit.com"],
       until: session.blockEndsAt,
     });
+    expect(bridge.status()).toBe("connected");
+    const clock = vi.spyOn(Date, "now").mockReturnValue(Date.now() + 6000);
+    expect(bridge.status()).toBe("disconnected");
+    clock.mockRestore();
     bridge.update({ ok: true, now, value: { ...session, status: "cancelled" } }, []);
     expect(await (await fetch(url, { headers })).json()).toMatchObject({ domains: [], until: 0 });
   } finally {
+    vi.restoreAllMocks();
     bridge.close();
   }
 });

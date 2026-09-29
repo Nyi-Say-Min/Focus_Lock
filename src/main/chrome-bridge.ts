@@ -2,6 +2,7 @@ import { createServer } from "node:http";
 import { timingSafeEqual } from "node:crypto";
 import type { SessionResult } from "../shared/session";
 import type { Website } from "../shared/websites";
+import type { BrowserStatus } from "../shared/browser";
 export const chromeOrigin = "chrome-extension://lagcombaaakcbdigjgoinbakanadojlk";
 export function createChromeBridge(token: string, port = 43821) {
   if (!/^[a-f0-9]{64}$/.test(token)) throw Error("INVALID_BROWSER_TOKEN");
@@ -43,6 +44,9 @@ export function createChromeBridge(token: string, port = 43821) {
   server.listen(port, "127.0.0.1");
   return {
     server,
+    status(): BrowserStatus {
+      return failed ? "unavailable" : seen > 0 && Date.now() - seen <= 5000 ? "connected" : "disconnected";
+    },
     update(result: SessionResult, sites: Website[]) {
       const value = result.ok ? result.value : null;
       state =

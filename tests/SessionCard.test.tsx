@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
+import { browserMock } from "./browser-mock";
 import { websitesMock } from "./websites-mock";
 import { afterEach, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
@@ -19,6 +20,7 @@ it("starts and stops through IPC, polls the main clock and disables unavailable 
     stop: vi.fn().mockResolvedValue({ ok: true, value: { ...value, status: "cancelled" }, now: 1000 }),
   };
   window.focusLock = {
+    browser: browserMock,
     websites: websitesMock,
     settings: { get: vi.fn(), update: vi.fn() },
     session,
@@ -96,6 +98,7 @@ it("shows enforcement errors while keeping Stop session available", async () => 
       value: { startedAt: 0, allowanceEndsAt: 60000, blockEndsAt: 120000, status: "blocking" },
     });
   window.focusLock = {
+    browser: browserMock,
     websites: websitesMock,
     settings: { get: vi.fn(), update: vi.fn() },
     applications: {

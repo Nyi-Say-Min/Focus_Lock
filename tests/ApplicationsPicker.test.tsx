@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
+import { browserMock } from "./browser-mock";
 import { websitesMock } from "./websites-mock";
 import { afterEach, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
@@ -24,6 +25,7 @@ it("searches names, disables duplicates, adds selected executables and offers br
     remove: vi.fn(),
   };
   window.focusLock = {
+    browser: browserMock,
     websites: websitesMock,
     applications,
     settings: { get: vi.fn(), update: vi.fn() },

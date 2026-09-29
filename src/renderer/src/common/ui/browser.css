@@ -1,0 +1,52 @@
+.chrome-setup-trigger {
+  position: absolute;
+  right: calc(var(--unit) * 1.5);
+  top: calc(var(--unit) * 1.8);
+  padding: 0.15em 0.4em;
+  font-size: max(11px, calc(var(--unit) * 1.1));
+  border: 2px solid #714323;
+  background: #fff4d6;
+}
+.chrome-setup-dialog {
+  margin: auto;
+  width: min(720px, 90vw);
+  max-height: 85vh;
+  overflow: auto;
+  padding: 24px;
+  border: 8px ridge #a7632d;
+  background: #fff4d6;
+  color: #112332;
+  font:
+    18px/1.4 Pixel,
+    monospace;
+}
+.chrome-setup-dialog::backdrop {
+  background: #102c4ac2;
+}
+#websites .chrome-setup-dialog h2 {
+  white-space: normal;
+  font-size: 28px;
+}
+.chrome-setup-dialog p {
+  margin: 12px 0;
+}
+.chrome-setup-dialog ol {
+  list-style: decimal;
+  padding-left: 24px;
+}
+.chrome-setup-dialog li {
+  margin: 10px 0;
+}
+.chrome-setup-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+#websites .chrome-setup-dialog [role="status"] {
+  position: static;
+  width: auto;
+  margin: 12px 0;
+  text-align: left;
+  font-size: 18px;
+  line-height: 1.4;
+}

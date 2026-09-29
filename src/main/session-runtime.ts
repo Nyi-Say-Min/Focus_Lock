@@ -1,4 +1,4 @@
-import { app, clipboard, ipcMain, powerMonitor, type BrowserWindow, type Tray } from "electron";
+import { app, clipboard, ipcMain, powerMonitor, shell, type BrowserWindow, type Tray } from "electron";
 import { randomBytes } from "node:crypto";
 import { createChromeBridge } from "./chrome-bridge";
 import Store from "electron-store";
@@ -16,6 +16,28 @@ export function installSessions(window: BrowserWindow, tray: Tray, url: string, 
   const blocker = createBlocker(readApps);
   const token = new Store({ name: "browser-link", defaults: { token: randomBytes(32).toString("hex") } }).get("token");
   const chrome = createChromeBridge(token);
+  ipcMain.handle("browser:request", async (event, action, ...args) => {
+    if (
+      event.sender !== window.webContents ||
+      event.senderFrame !== window.webContents.mainFrame ||
+      event.senderFrame.url !== url ||
+      args.length ||
+      !["getStatus", "copyCode", "openFolder"].includes(action)
+    )
+      return { ok: false, error: "FORBIDDEN" };
+    try {
+      if (action === "copyCode") clipboard.writeText(token);
+      if (action === "openFolder") {
+        const error = await shell.openPath(
+          join(app.isPackaged ? process.resourcesPath : app.getAppPath(), "resources", "chrome"),
+        );
+        if (error) return { ok: false, error: "FOLDER_UNAVAILABLE" };
+      }
+      return { ok: true, status: chrome.status() };
+    } catch {
+      return { ok: false, error: "BROWSER_SETUP_FAILED" };
+    }
+  });
   const sites = websiteStore(),
     recovery = new Store({ name: "website-recovery", defaults: { needed: false } });
   const websites = createWebsiteBlocker(

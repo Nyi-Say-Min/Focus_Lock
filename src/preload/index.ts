@@ -3,6 +3,7 @@ import type { WebsitesAPI } from "../shared/websites";
 import type { SettingsAPI } from "../shared/types";
 import type { SessionAPI } from "../shared/session";
 import type { ApplicationsAPI } from "../shared/applications";
+import type { BrowserAPI } from "../shared/browser";
 
 const settings: SettingsAPI = {
   get: () => ipcRenderer.invoke("settings:get"),
@@ -31,7 +32,13 @@ const websites: WebsitesAPI = {
   remove: (domain) =>
     ipcRenderer.invoke("websites:request", "remove", [domain]),
 };
+const browser: BrowserAPI = {
+  getStatus: () => ipcRenderer.invoke("browser:request", "getStatus"),
+  copyCode: () => ipcRenderer.invoke("browser:request", "copyCode"),
+  openFolder: () => ipcRenderer.invoke("browser:request", "openFolder"),
+};
 contextBridge.exposeInMainWorld("focusLock", {
+  browser,
   settings,
   session,
   applications,

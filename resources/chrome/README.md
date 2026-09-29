@@ -7,6 +7,7 @@ This extension replaces selected HTTP/HTTPS tabs with a FocusLock break page, bl
 1. Run `npm run dev` in FocusLock.
 2. Open `chrome://extensions`, enable Developer mode, choose **Load unpacked**, and select this `resources/chrome` folder. In packaged builds, the folder is under the application's `resources/resources/chrome` directory.
 3. Right-click the FocusLock tray icon and choose **Copy Chrome pairing code**.
+   Alternatively, click **Set up Chrome** in the dashboard's Websites panel. The dialog can open the extension folder, copy the pairing code, and show connection status even before a session starts.
 4. Open the extension's options or toolbar popup, paste the code, and click **Pair Chrome**. Wait for **Connected to FocusLock**.
 5. Leave a selected site open and start a session. At the transition from social time to break, its tab should become a break page within approximately one second. Unselected tabs stay available. Attempting to open a selected site during the break should also show that page.
 6. Press Stop in FocusLock. The return button should unlock; click it to reopen the preserved URL.
