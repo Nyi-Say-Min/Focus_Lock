@@ -71,7 +71,7 @@ export default function BrowserSetup() {
           {status
             ? status.unavailable
               ? "Connection unavailable: port 43821 is busy. Restart FocusLock after freeing it."
-              : `Chrome: ${status.chrome ? "connected" : "disconnected"} · Edge: ${status.edge ? "connected" : "disconnected"}`
+              : `Chrome: ${status.chrome ? "connected" : "disconnected"} · Edge: ${status.edge ? "connected" : "disconnected"} · Firefox: ${status.firefox ? "connected" : "disconnected"}`
             : "Checking desktop connection… If this persists, close and reopen setup."}
         </p>
         <ol>
@@ -79,6 +79,11 @@ export default function BrowserSetup() {
             Open <code>chrome://extensions</code> or{" "}
             <code>edge://extensions</code> yourself. Enable Developer mode, then
             choose Load unpacked.
+          </li>
+          <li>
+            For Firefox, open <code>about:debugging</code>, choose This Firefox,
+            then Load Temporary Add-on and select manifest.json in the same
+            extension folder.
           </li>
           <li>
             Click Open extension folder below. Select that folder in Chrome’s
@@ -94,8 +99,9 @@ export default function BrowserSetup() {
           </li>
         </ol>
         <p>
-          Install and pair in every Chrome or Edge profile you use. Firefox and
-          other browsers are not supported by this companion.
+          Install and pair in every browser profile you use. Firefox's temporary
+          add-on must be loaded again after Firefox restarts. Other browsers are
+          not supported by this companion.
         </p>
         <p>
           URLs stay in your tabs; unsaved page state is lost. Return to website

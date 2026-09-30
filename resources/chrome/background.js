@@ -1,7 +1,12 @@
 let busy = false,
   rulesKey = "";
-const blockedPage = chrome.runtime.getURL("page.html");
-const browserName = /\bEdg\//.test(navigator.userAgent) ? "edge" : "chrome";
+const ext = typeof browser === "undefined" ? chrome : browser;
+const blockedPage = ext.runtime.getURL("page.html");
+const browserName = /\bFirefox\//.test(navigator.userAgent)
+  ? "firefox"
+  : /\bEdg\//.test(navigator.userAgent)
+    ? "edge"
+    : "chrome";
 function matches(url, domains) {
   try {
     const parsed = new URL(url);
@@ -35,8 +40,8 @@ async function poll() {
   if (busy) return;
   busy = true;
   try {
-    const { token } = await chrome.storage.local.get("token");
-    let { state } = await chrome.storage.session.get("state");
+    const { token } = await ext.storage.local.get("token");
+    let { state } = await ext.storage.session.get("state");
     let status = token ? "FocusLock disconnected" : "Pair with FocusLock first";
     if (token) {
       try {
@@ -66,15 +71,15 @@ async function poll() {
             { id: 2, priority: 1, action: { type: "block" }, condition: embedded },
           ]
         : [];
-      await chrome.declarativeNetRequest.updateSessionRules({ removeRuleIds: [1, 2], addRules });
+      await ext.declarativeNetRequest.updateSessionRules({ removeRuleIds: [1, 2], addRules });
       rulesKey = key;
     }
     if (domains.length) {
-      for (const tab of await chrome.tabs.query({})) {
+      for (const tab of await ext.tabs.query({})) {
         const url = tab.pendingUrl || tab.url;
         if (matches(url, domains)) {
           try {
-            await chrome.tabs.update(tab.id, { url: `${blockedPage}#${url}` });
+            await ext.tabs.update(tab.id, { url: `${blockedPage}#${url}` });
           } catch {
             /* A tab can be closed between the query and update. Retry next poll. */
           }
@@ -82,19 +87,19 @@ async function poll() {
       }
       status = "Break active — selected websites are blocked";
     }
-    await chrome.storage.session.set({ state: state || null, status });
-    await chrome.action.setBadgeText({ text: domains.length ? "ON" : status.startsWith("Connected") ? "" : "!" });
+    await ext.storage.session.set({ state: state || null, status });
+    await ext.action.setBadgeText({ text: domains.length ? "ON" : status.startsWith("Connected") ? "" : "!" });
   } catch {
-    await chrome.storage.session.set({ status: "Chrome blocking failed. Reload the extension." });
+    await ext.storage.session.set({ status: "Browser blocking failed. Reload the extension." });
   } finally {
     busy = false;
   }
 }
-chrome.runtime.onStartup.addListener(() => void poll());
-chrome.storage.onChanged.addListener((_changes, area) => {
+ext.runtime.onStartup.addListener(() => void poll());
+ext.storage.onChanged.addListener((_changes, area) => {
   if (area === "local") void poll();
 });
-chrome.alarms.create("sync", { periodInMinutes: 0.5 });
-chrome.alarms.onAlarm.addListener(() => void poll());
+ext.alarms.create("sync", { periodInMinutes: 0.5 });
+ext.alarms.onAlarm.addListener(() => void poll());
 setInterval(() => void poll(), 1000);
 void poll();

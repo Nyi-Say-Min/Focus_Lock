@@ -1,6 +1,7 @@
 const status = document.getElementById("status");
 const form = document.getElementById("pair");
 const back = document.getElementById("return");
+const ext = typeof browser === "undefined" ? chrome : browser;
 let original;
 try {
   const url = new URL(location.hash.slice(1));
@@ -24,12 +25,12 @@ form.addEventListener("submit", async (event) => {
     status.textContent = "Paste the 64-character pairing code.";
     return;
   }
-  await chrome.storage.local.set({ token: input.value.trim() });
+  await ext.storage.local.set({ token: input.value.trim() });
   input.value = "";
   status.textContent = "Pairing…";
 });
 async function render() {
-  const { state, status: connection } = await chrome.storage.session.get(["state", "status"]);
+  const { state, status: connection } = await ext.storage.session.get(["state", "status"]);
   if (!original) {
     status.textContent = connection || "Waiting for FocusLock…";
     return;

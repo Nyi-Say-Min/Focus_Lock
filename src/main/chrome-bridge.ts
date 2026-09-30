@@ -4,24 +4,26 @@ import type { SessionResult } from "../shared/session";
 import type { Website } from "../shared/websites";
 import type { BrowserStatus } from "../shared/browser";
 export const chromeOrigin = "chrome-extension://lagcombaaakcbdigjgoinbakanadojlk";
+const firefoxOrigin = /^moz-extension:\/\/[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
 export function createChromeBridge(token: string, port = 43821) {
   if (!/^[a-f0-9]{64}$/.test(token)) throw Error("INVALID_BROWSER_TOKEN");
   let state = { domains: [] as string[], until: 0 },
     failed = false;
-  const seen = { chrome: 0, edge: 0 };
+  const seen = { chrome: 0, edge: 0, firefox: 0 };
   const server = createServer({ maxHeaderSize: 8192 }, (request, response) => {
     const address = server.address();
     const credential = request.headers.authorization ?? "";
     const expected = `Bearer ${token}`;
+    const origin = request.headers.origin;
     const allowed =
-      (!request.headers.origin || request.headers.origin === chromeOrigin) &&
+      (!origin || origin === chromeOrigin || firefoxOrigin.test(origin)) &&
       request.url === "/state" &&
       typeof address === "object" &&
       address &&
       request.headers.host === `127.0.0.1:${address.port}`;
     response.setHeader("Cache-Control", "no-store");
     if (!allowed) return response.writeHead(403).end();
-    response.setHeader("Access-Control-Allow-Origin", chromeOrigin);
+    response.setHeader("Access-Control-Allow-Origin", origin || chromeOrigin);
     if (request.method === "OPTIONS") {
       response.setHeader("Access-Control-Allow-Headers", "Authorization, X-FocusLock-Browser");
       response.setHeader("Access-Control-Allow-Methods", "GET");
@@ -33,7 +35,12 @@ export function createChromeBridge(token: string, port = 43821) {
       !timingSafeEqual(Buffer.from(credential), Buffer.from(expected))
     )
       return response.writeHead(401).end();
-    const browser = request.headers["x-focuslock-browser"] === "edge" ? "edge" : "chrome";
+    const browser =
+      origin && firefoxOrigin.test(origin)
+        ? "firefox"
+        : request.headers["x-focuslock-browser"] === "edge"
+          ? "edge"
+          : "chrome";
     seen[browser] = Date.now();
     const current = state.until > seen[browser] ? state : { domains: [], until: 0 };
     response.setHeader("Content-Type", "application/json");
@@ -49,6 +56,7 @@ export function createChromeBridge(token: string, port = 43821) {
       return {
         chrome: seen.chrome > 0 && Date.now() - seen.chrome <= 5000,
         edge: seen.edge > 0 && Date.now() - seen.edge <= 5000,
+        firefox: seen.firefox > 0 && Date.now() - seen.firefox <= 5000,
         unavailable: failed,
       };
     },

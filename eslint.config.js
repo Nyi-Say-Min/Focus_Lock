@@ -5,7 +5,9 @@ import globals from "globals";
 export default tseslint.config(
   {
     files: ["resources/chrome/*.js"],
-    languageOptions: { globals: { ...globals.browser, chrome: "readonly" } },
+    languageOptions: {
+      globals: { ...globals.browser, browser: "readonly", chrome: "readonly" },
+    },
   },
   {
     ignores: [

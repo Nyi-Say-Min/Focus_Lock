@@ -125,7 +125,7 @@ export default function WebsitesCard() {
         {message ||
           (busy
             ? "Saving / loading websites…"
-            : "Set up Chrome or Edge to block open tabs. Windows website rules also need administrator approval.")}
+            : "Set up your browser to block open tabs. Windows website rules also need administrator approval.")}
       </p>
     </Card>
   );

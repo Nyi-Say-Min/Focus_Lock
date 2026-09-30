@@ -11,7 +11,7 @@ it("authenticates Chrome, rejects websites, exposes only active selections, and 
     if (!address || typeof address === "string") throw Error("No listener");
     const url = `http://127.0.0.1:${address.port}/state`;
     const headers = { Authorization: `Bearer ${"a".repeat(64)}`, Origin: chromeOrigin };
-    expect(bridge.status()).toEqual({ chrome: false, edge: false, unavailable: false });
+    expect(bridge.status()).toEqual({ chrome: false, edge: false, firefox: false, unavailable: false });
     expect((await fetch(url)).status).toBe(401);
     expect((await fetch(url, { headers: { ...headers, Origin: "https://reddit.com" } })).status).toBe(403);
     expect((await fetch(url, { headers, method: "POST" })).status).toBe(401);
@@ -28,13 +28,30 @@ it("authenticates Chrome, rejects websites, exposes only active selections, and 
     };
     expect(state).toMatchObject({ domains: ["reddit.com"], until: session.blockEndsAt });
     expect(state.leaseUntil).toBeGreaterThan(now);
-    expect(bridge.status()).toEqual({ chrome: true, edge: false, unavailable: false });
+    expect(bridge.status()).toEqual({ chrome: true, edge: false, firefox: false, unavailable: false });
     expect(await (await fetch(url, { headers: { ...headers, "X-FocusLock-Browser": "edge" } })).json()).toMatchObject({
       domains: ["reddit.com"],
     });
-    expect(bridge.status()).toEqual({ chrome: true, edge: true, unavailable: false });
+    expect(bridge.status()).toEqual({ chrome: true, edge: true, firefox: false, unavailable: false });
+    const firefox = "moz-extension://12345678-1234-1234-1234-123456789abc";
+    expect(
+      (
+        await fetch(url, {
+          method: "OPTIONS",
+          headers: { Origin: firefox, "Access-Control-Request-Headers": "authorization,x-focuslock-browser" },
+        })
+      ).headers.get("access-control-allow-origin"),
+    ).toBe(firefox);
+    expect((await fetch(url, { headers: { ...headers, Origin: "moz-extension://spoof" } })).status).toBe(403);
+    expect((await fetch(url, { headers: { ...headers, Origin: firefox, Authorization: "Bearer wrong" } })).status).toBe(
+      401,
+    );
+    expect(
+      (await fetch(url, { headers: { ...headers, Origin: firefox, "X-FocusLock-Browser": "firefox" } })).status,
+    ).toBe(200);
+    expect(bridge.status()).toEqual({ chrome: true, edge: true, firefox: true, unavailable: false });
     const clock = vi.spyOn(Date, "now").mockReturnValue(Date.now() + 6000);
-    expect(bridge.status()).toEqual({ chrome: false, edge: false, unavailable: false });
+    expect(bridge.status()).toEqual({ chrome: false, edge: false, firefox: false, unavailable: false });
     clock.mockRestore();
     bridge.update({ ok: true, now, value: { ...session, status: "cancelled" } }, []);
     expect(await (await fetch(url, { headers })).json()).toMatchObject({ domains: [], until: 0 });
@@ -106,4 +123,48 @@ it("replaces existing matching tabs, blocks new requests, and releases on expiry
   incoming = { domains: [], until: 0, leaseUntil: 15000 };
   await runInContext("poll()", context);
   expect(saved.status).toBe("Connected to FocusLock");
+});
+it("runs the Firefox background page with its promise API and replaces an existing tab", async () => {
+  const now = Date.now();
+  const update = vi.fn(),
+    rules = vi.fn(),
+    fetchState = vi.fn(async (_url: string, options: { headers: Record<string, string> }) => {
+      expect(options.headers["X-FocusLock-Browser"]).toBe("firefox");
+      return { ok: true, json: async () => ({ domains: ["reddit.com"], until: now + 60000, leaseUntil: now + 5000 }) };
+    });
+  const event = { addListener() {} },
+    noop = () => {};
+  const browser = {
+    runtime: {
+      getURL: (path: string) => `moz-extension://12345678-1234-1234-1234-123456789abc/${path}`,
+      onStartup: event,
+    },
+    storage: {
+      local: { get: async () => ({ token: "a".repeat(64) }) },
+      session: { get: async () => ({}), set: noop },
+      onChanged: event,
+    },
+    tabs: { query: async () => [{ id: 5, url: "https://www.reddit.com/r/test" }], update },
+    declarativeNetRequest: { updateSessionRules: rules },
+    action: { setBadgeText: noop },
+    alarms: { create: noop, onAlarm: event },
+  };
+  runInContext(
+    readFileSync("resources/chrome/background.js", "utf8"),
+    createContext({
+      browser,
+      navigator: { userAgent: "Firefox/128.0" },
+      URL,
+      AbortSignal,
+      Date,
+      fetch: fetchState,
+      setInterval: noop,
+    }),
+  );
+  await new Promise(setImmediate);
+  expect(fetchState).toHaveBeenCalledOnce();
+  expect(rules.mock.lastCall?.[0].addRules).toHaveLength(2);
+  expect(update).toHaveBeenCalledWith(5, {
+    url: "moz-extension://12345678-1234-1234-1234-123456789abc/page.html#https://www.reddit.com/r/test",
+  });
 });
