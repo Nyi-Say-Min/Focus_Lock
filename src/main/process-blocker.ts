@@ -5,14 +5,16 @@ import type { SessionResult } from "../shared/session";
 
 export type BlockRequest = { names: string[]; until: number };
 export type Terminate = (request: BlockRequest, signal: AbortSignal) => Promise<void>;
-const command = String.raw`
+export const terminationCommand = String.raw`
 $ErrorActionPreference = 'Stop'
 [Console]::InputEncoding = [Text.UTF8Encoding]::new()
 $data = [Console]::In.ReadToEnd() | ConvertFrom-Json
 $session = (Get-Process -Id $PID).SessionId
 $failed = $false
+$targets = @()
 foreach ($p in Get-Process) {
   if ($data.names -notcontains ($p.ProcessName + '.exe')) { continue }
+  $retained = $false
   try {
     if ([DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds() -ge $data.until) { break }
     if ($p.SessionId -ne $session) { continue }
@@ -22,7 +24,19 @@ foreach ($p in Get-Process) {
       $failed = $true
       continue
     }
-    $p.Kill()
+    $targets += $p
+    $retained = $true
+    try { $null = $p.CloseMainWindow() } catch { }
+  } catch { if (!$p.HasExited) { $failed = $true } }
+  finally { if (!$retained) { $p.Dispose() } }
+}
+# All selected processes share one grace period, including apps that close to tray.
+$graceEnds = [Math]::Min([DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds() + 1500, [long]$data.until)
+foreach ($p in $targets) {
+  try {
+    $wait = [Math]::Max(0, $graceEnds - [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds())
+    if (!$p.HasExited -and $wait -gt 0) { $null = $p.WaitForExit([int]$wait) }
+    if (!$p.HasExited -and [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds() -lt $data.until) { $p.Kill() }
   } catch { if (!$p.HasExited) { $failed = $true } }
   finally { $p.Dispose() }
 }
@@ -36,7 +50,7 @@ export const terminateWindows: Terminate = async (request, signal) => {
   await new Promise<void>((resolve, reject) => {
     const child = execFile(
       join(process.env.SystemRoot || "C:\\Windows", "System32/WindowsPowerShell/v1.0/powershell.exe"),
-      ["-NoProfile", "-NonInteractive", "-Command", command],
+      ["-NoProfile", "-NonInteractive", "-Command", terminationCommand],
       { windowsHide: true, timeout: 8000, maxBuffer: 65536, signal },
       (error) => (error ? reject(error) : resolve()),
     );

@@ -43,25 +43,29 @@ it("enforces only blocking sessions, uses selections and retries relaunches with
   expect(terminate).toHaveBeenCalledTimes(2);
 });
 
-it.each(["stop", "quit", "selection", "storage", "session error"])("cancels in-flight enforcement on %s", (reason) => {
-  let items = apps;
-  const read = vi.fn(() => items),
-    terminate = vi.fn<Terminate>(() => new Promise<void>(() => {}));
-  const blocker = createBlocker(read, terminate, () => 2000);
-  blocker.update(snapshot());
-  if (reason === "quit") blocker.close();
-  else if (reason === "stop") blocker.update(snapshot("cancelled"));
-  else if (reason === "session error") blocker.update({ ok: false, error: "STORAGE_FAILED" });
-  else {
-    if (reason === "storage")
-      read.mockImplementation(() => {
-        throw Error("corrupt");
-      });
-    else items = [];
+it.each(["stop", "expiry", "quit", "selection", "storage", "session error"])(
+  "cancels in-flight enforcement on %s",
+  (reason) => {
+    let items = apps;
+    const read = vi.fn(() => items),
+      terminate = vi.fn<Terminate>(() => new Promise<void>(() => {}));
+    const blocker = createBlocker(read, terminate, () => 2000);
     blocker.update(snapshot());
-  }
-  expect(terminate.mock.calls[0][1].aborted).toBe(true);
-});
+    if (reason === "quit") blocker.close();
+    else if (reason === "stop") blocker.update(snapshot("cancelled"));
+    else if (reason === "expiry") blocker.update(snapshot("completed"));
+    else if (reason === "session error") blocker.update({ ok: false, error: "STORAGE_FAILED" });
+    else {
+      if (reason === "storage")
+        read.mockImplementation(() => {
+          throw Error("corrupt");
+        });
+      else items = [];
+      blocker.update(snapshot());
+    }
+    expect(terminate.mock.calls[0][1].aborted).toBe(true);
+  },
+);
 
 it("reports failure, recovers on retry, and never resumes after shutdown", async () => {
   let now = 2000;
