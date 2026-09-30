@@ -74,6 +74,16 @@ export default function BrowserSetup() {
               : `Connected profiles — Chrome: ${status.chrome} · Edge: ${status.edge} · Firefox: ${status.firefox}`
             : "Checking desktop connection… If this persists, close and reopen setup."}
         </p>
+        {status && !status.unavailable && (
+          <p role="status">
+            Rule updates — confirmed: {status.sync.applied} · waiting:{" "}
+            {status.sync.pending} · failed: {status.sync.failed}.
+            {status.sync.pending > 0 &&
+              " If waiting persists, reload the companion in each browser profile."}
+            {status.sync.failed > 0 &&
+              " Open the companion in each profile to check its error; reload it to retry."}
+          </p>
+        )}
         <ol>
           <li>
             Open <code>chrome://extensions</code> or{" "}

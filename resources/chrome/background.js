@@ -1,5 +1,6 @@
 let busy = false,
-  rulesKey = "";
+  rulesKey = "",
+  report = "";
 const ext = typeof browser === "undefined" ? chrome : browser;
 const blockedPage = ext.runtime.getURL("page.html");
 const browserName = /\bFirefox\//.test(navigator.userAgent)
@@ -39,6 +40,8 @@ function valid(state) {
 async function poll() {
   if (busy) return;
   busy = true;
+  const previousReport = report;
+  report = "";
   try {
     let { token, clientId } = await ext.storage.local.get(["token", "clientId"]);
     if (token && !clientId) {
@@ -54,6 +57,7 @@ async function poll() {
             Authorization: `Bearer ${token}`,
             "X-FocusLock-Browser": browserName,
             "X-FocusLock-Client": clientId,
+            "X-FocusLock-Report": previousReport,
           },
           signal: AbortSignal.timeout(2000),
           cache: "no-store",
@@ -62,6 +66,8 @@ async function poll() {
         const incoming = await response.json();
         if (!valid(incoming)) throw Error("Invalid desktop state");
         state = incoming;
+        if (typeof state.revision === "string" && /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/.test(state.revision))
+          report = `${state.revision}:failed`;
         status = "Connected to FocusLock";
       } catch {
         /* Keep the last rules for at most five seconds during reconnection. */
@@ -82,6 +88,7 @@ async function poll() {
       await ext.declarativeNetRequest.updateSessionRules({ removeRuleIds: [1, 2], addRules });
       rulesKey = key;
     }
+    let tabFailed = false;
     if (domains.length) {
       for (const tab of await ext.tabs.query({})) {
         const url = tab.pendingUrl || tab.url;
@@ -89,16 +96,21 @@ async function poll() {
           try {
             await ext.tabs.update(tab.id, { url: `${blockedPage}#${url}` });
           } catch {
-            /* A tab can be closed between the query and update. Retry next poll. */
+            tabFailed = true;
           }
         }
       }
-      status = "Break active — selected websites are blocked";
+      status = tabFailed ? "Some tabs could not be blocked. Retrying…" : "Break active — selected websites are blocked";
     }
+    if (report && !tabFailed) report = `${state.revision}:applied`;
     await ext.storage.session.set({ state: state || null, status });
-    await ext.action.setBadgeText({ text: domains.length ? "ON" : status.startsWith("Connected") ? "" : "!" });
+    await ext.action.setBadgeText({
+      text: tabFailed ? "!" : domains.length ? "ON" : status.startsWith("Connected") ? "" : "!",
+    });
   } catch {
+    report = report.replace(/:applied$/, ":failed");
     await ext.storage.session.set({ status: "Browser blocking failed. Reload the extension." });
+    await ext.action.setBadgeText({ text: "!" });
   } finally {
     busy = false;
   }

@@ -21,3 +21,9 @@ The extension needs tab URLs and access to HTTP/HTTPS sites to enforce user-sele
 Stopping, expiry, and selection changes sync while the app is running. If the desktop connection disappears, the companion removes its rules after a five-second connection lease. Its timer and backup alarm recover after a background restart. Removing/disabling the extension bypasses tab enforcement; hosts rules remain an additional layer. This is a personal focus tool, not a tamper-proof parental-control mechanism.
 
 If the dashboard shows a browser disconnected, check pairing and that browser's profile. If port 43821 is occupied, the dashboard reports the bridge error; the app does not terminate another process to claim that port.
+
+## Rule confirmation
+
+The setup dialog also counts rule updates as **confirmed**, **waiting**, or **failed** across connected profiles. Confirmation means the companion applied the latest request rules and completed its tab replacement pass. It does not cover profiles without the companion, or prove that every possible browsing path is blocked. Failures appear in the session message during a break and in the companion popup; the companion retries on its next poll.
+
+Changing selections, stopping, or reaching the session deadline requires a new confirmation. Reports normally arrive on the next poll; disconnected profiles drop out after five seconds. Reload companions after upgrading to version 0.5.0: older versions can still block sites but cannot confirm their rules, so they remain waiting. These reports contain a rule revision and success/failure only, with no tab URLs or page content.

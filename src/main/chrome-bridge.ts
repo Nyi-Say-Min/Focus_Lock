@@ -1,5 +1,5 @@
 import { createServer } from "node:http";
-import { timingSafeEqual } from "node:crypto";
+import { randomUUID, timingSafeEqual } from "node:crypto";
 import type { SessionResult } from "../shared/session";
 import type { Website } from "../shared/websites";
 import type { BrowserStatus } from "../shared/browser";
@@ -9,13 +9,28 @@ export function createChromeBridge(token: string, port = 43821) {
   if (!/^[a-f0-9]{64}$/.test(token)) throw Error("INVALID_BROWSER_TOKEN");
   let state = { domains: [] as string[], until: 0 },
     failed = false;
-  const clients = new Map<string, { browser: "chrome" | "edge" | "firefox"; seen: number }>();
+  let revision = randomUUID();
+  const clients = new Map<string, { browser: "chrome" | "edge" | "firefox"; seen: number; report: string }>();
+  function setState(next: typeof state) {
+    if (JSON.stringify(next) !== JSON.stringify(state)) revision = randomUUID();
+    state = next;
+  }
   function status(): BrowserStatus {
     const now = Date.now();
-    const counts = { chrome: 0, edge: 0, firefox: 0, unavailable: failed };
+    if (state.until && state.until <= now) setState({ domains: [], until: 0 });
+    const counts = { chrome: 0, edge: 0, firefox: 0, unavailable: failed, sync: { applied: 0, pending: 0, failed: 0 } };
     for (const [key, client] of clients) {
       if (now - client.seen > 5000) clients.delete(key);
-      else counts[client.browser]++;
+      else {
+        counts[client.browser]++;
+        const result =
+          client.report === `${revision}:applied`
+            ? "applied"
+            : client.report === `${revision}:failed`
+              ? "failed"
+              : "pending";
+        counts.sync[result]++;
+      }
     }
     return counts;
   }
@@ -34,7 +49,10 @@ export function createChromeBridge(token: string, port = 43821) {
     if (!allowed) return response.writeHead(403).end();
     response.setHeader("Access-Control-Allow-Origin", origin || chromeOrigin);
     if (request.method === "OPTIONS") {
-      response.setHeader("Access-Control-Allow-Headers", "Authorization, X-FocusLock-Browser, X-FocusLock-Client");
+      response.setHeader(
+        "Access-Control-Allow-Headers",
+        "Authorization, X-FocusLock-Browser, X-FocusLock-Client, X-FocusLock-Report",
+      );
       response.setHeader("Access-Control-Allow-Methods", "GET");
       return response.writeHead(204).end();
     }
@@ -54,11 +72,16 @@ export function createChromeBridge(token: string, port = 43821) {
     const id = request.headers["x-focuslock-client"];
     if (id && (typeof id !== "string" || !/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/.test(id)))
       return response.writeHead(400).end();
-    clients.set(`${browser}:${id || "legacy"}`, { browser, seen });
+    const report = request.headers["x-focuslock-report"] || "";
+    if (
+      typeof report !== "string" ||
+      (report && !/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}:(applied|failed)$/.test(report))
+    )
+      return response.writeHead(400).end();
+    clients.set(`${browser}:${id || "legacy"}`, { browser, seen, report });
     status();
-    const current = state.until > seen ? state : { domains: [], until: 0 };
     response.setHeader("Content-Type", "application/json");
-    response.end(JSON.stringify({ ...current, leaseUntil: seen + 5000 }));
+    response.end(JSON.stringify({ ...state, revision, leaseUntil: seen + 5000 }));
   });
   server.on("error", () => {
     failed = true;
@@ -69,16 +92,22 @@ export function createChromeBridge(token: string, port = 43821) {
     status,
     update(result: SessionResult, sites: Website[]) {
       const value = result.ok ? result.value : null;
-      state =
+      setState(
         value?.status === "blocking" && value.blockEndsAt > Date.now()
           ? { domains: sites.filter((site) => site.enabled).map((site) => site.domain), until: value.blockEndsAt }
-          : { domains: [], until: 0 };
+          : { domains: [], until: 0 },
+      );
+      const { sync } = status();
       return state.domains.length
         ? failed
           ? "Browser connection unavailable: local port 43821 is busy."
-          : !status().chrome && !status().edge && !status().firefox
-            ? "Browser companion disconnected. Install and pair it to block open tabs."
-            : "Browser tab blocking connected."
+          : sync.failed
+            ? `Browser blocking failed in ${sync.failed} profile(s). Open the companion and reload it to retry.`
+            : sync.pending
+              ? `Waiting for ${sync.pending} browser profile(s) to confirm rules. Reload outdated companions.`
+              : !sync.applied
+                ? "Browser companion disconnected. Install and pair it to block open tabs."
+                : `Browser rules confirmed in ${sync.applied} connected profile(s).`
         : "";
     },
     close() {

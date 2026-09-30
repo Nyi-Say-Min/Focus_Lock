@@ -3,6 +3,7 @@ export type BrowserStatus = {
   edge: number;
   firefox: number;
   unavailable: boolean;
+  sync: { applied: number; pending: number; failed: number };
 };
 export type BrowserResult =
   { ok: true; status: BrowserStatus } | { ok: false; error: string };

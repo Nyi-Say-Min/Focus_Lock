@@ -26,11 +26,23 @@ it("offers manual setup, copies without exposing the code, and updates connectio
   const browser = {
     getStatus: vi.fn().mockResolvedValue({
       ok: true,
-      status: { chrome: 2, edge: 0, firefox: 0, unavailable: false },
+      status: {
+        chrome: 2,
+        edge: 0,
+        firefox: 0,
+        unavailable: false,
+        sync: { applied: 0, pending: 2, failed: 0 },
+      },
     }),
     copyCode: vi.fn().mockResolvedValue({
       ok: true,
-      status: { chrome: 2, edge: 0, firefox: 0, unavailable: false },
+      status: {
+        chrome: 2,
+        edge: 0,
+        firefox: 0,
+        unavailable: false,
+        sync: { applied: 0, pending: 0, failed: 0 },
+      },
     }),
     openFolder: vi
       .fn()
@@ -49,6 +61,9 @@ it("offers manual setup, copies without exposing the code, and updates connectio
     screen.getByText("Connected profiles — Chrome: 2 · Edge: 0 · Firefox: 0"),
   ).toBeInTheDocument();
   expect(screen.getByText("chrome://extensions")).toBeInTheDocument();
+  expect(
+    screen.getByText(/Rule updates — confirmed: 0 · waiting: 2 · failed: 0/),
+  ).toBeInTheDocument();
   expect(screen.getByText("edge://extensions")).toBeInTheDocument();
   expect(screen.getByText("about:debugging")).toBeInTheDocument();
   await act(async () => {
@@ -67,7 +82,13 @@ it("offers manual setup, copies without exposing the code, and updates connectio
   ).toBeInTheDocument();
   browser.getStatus.mockResolvedValue({
     ok: true,
-    status: { chrome: 0, edge: 1, firefox: 1, unavailable: false },
+    status: {
+      chrome: 0,
+      edge: 1,
+      firefox: 1,
+      unavailable: false,
+      sync: { applied: 1, pending: 0, failed: 1 },
+    },
   });
   await act(async () => {
     await vi.advanceTimersByTimeAsync(1500);
@@ -76,6 +97,9 @@ it("offers manual setup, copies without exposing the code, and updates connectio
     screen.getByText("Connected profiles — Chrome: 0 · Edge: 1 · Firefox: 1"),
   ).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Close" }));
+  expect(
+    screen.getByText(/Rule updates — confirmed: 1 · waiting: 0 · failed: 1/),
+  ).toBeInTheDocument();
   const calls = browser.getStatus.mock.calls.length;
   await act(async () => {
     await vi.advanceTimersByTimeAsync(3000);

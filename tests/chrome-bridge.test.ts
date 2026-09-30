@@ -12,7 +12,7 @@ it("authenticates Chrome, rejects websites, exposes only active selections, and 
     const url = `http://127.0.0.1:${address.port}/state`;
     const clientId = "11111111-1111-4111-8111-111111111111";
     const headers = { Authorization: `Bearer ${"a".repeat(64)}`, Origin: chromeOrigin, "X-FocusLock-Client": clientId };
-    expect(bridge.status()).toEqual({ chrome: 0, edge: 0, firefox: 0, unavailable: false });
+    expect(bridge.status()).toMatchObject({ chrome: 0, edge: 0, firefox: 0, unavailable: false });
     expect((await fetch(url)).status).toBe(401);
     expect((await fetch(url, { headers: { ...headers, Origin: "https://reddit.com" } })).status).toBe(403);
     expect((await fetch(url, { headers, method: "POST" })).status).toBe(401);
@@ -29,17 +29,17 @@ it("authenticates Chrome, rejects websites, exposes only active selections, and 
     };
     expect(state).toMatchObject({ domains: ["reddit.com"], until: session.blockEndsAt });
     expect(state.leaseUntil).toBeGreaterThan(now);
-    expect(bridge.status()).toEqual({ chrome: 1, edge: 0, firefox: 0, unavailable: false });
+    expect(bridge.status()).toMatchObject({ chrome: 1, edge: 0, firefox: 0, unavailable: false });
     const second = { ...headers, "X-FocusLock-Client": "22222222-2222-4222-8222-222222222222" };
     expect((await fetch(url, { headers: second })).status).toBe(200);
     expect((await fetch(url, { headers: second })).status).toBe(200);
-    expect(bridge.status()).toEqual({ chrome: 2, edge: 0, firefox: 0, unavailable: false });
+    expect(bridge.status()).toMatchObject({ chrome: 2, edge: 0, firefox: 0, unavailable: false });
     expect((await fetch(url, { headers: { ...headers, "X-FocusLock-Client": "invalid" } })).status).toBe(400);
     expect(bridge.status().chrome).toBe(2);
     expect(await (await fetch(url, { headers: { ...headers, "X-FocusLock-Browser": "edge" } })).json()).toMatchObject({
       domains: ["reddit.com"],
     });
-    expect(bridge.status()).toEqual({ chrome: 2, edge: 1, firefox: 0, unavailable: false });
+    expect(bridge.status()).toMatchObject({ chrome: 2, edge: 1, firefox: 0, unavailable: false });
     const firefox = "moz-extension://12345678-1234-1234-1234-123456789abc";
     expect(
       (
@@ -67,9 +67,9 @@ it("authenticates Chrome, rejects websites, exposes only active selections, and 
     expect(
       (await fetch(url, { headers: { ...headers, Origin: firefox, "X-FocusLock-Browser": "firefox" } })).status,
     ).toBe(200);
-    expect(bridge.status()).toEqual({ chrome: 2, edge: 1, firefox: 1, unavailable: false });
+    expect(bridge.status()).toMatchObject({ chrome: 2, edge: 1, firefox: 1, unavailable: false });
     const clock = vi.spyOn(Date, "now").mockReturnValue(Date.now() + 6000);
-    expect(bridge.status()).toEqual({ chrome: 0, edge: 0, firefox: 0, unavailable: false });
+    expect(bridge.status()).toMatchObject({ chrome: 0, edge: 0, firefox: 0, unavailable: false });
     clock.mockRestore();
     bridge.update({ ok: true, now, value: { ...session, status: "cancelled" } }, []);
     expect(await (await fetch(url, { headers })).json()).toMatchObject({ domains: [], until: 0 });
@@ -78,10 +78,63 @@ it("authenticates Chrome, rejects websites, exposes only active selections, and 
     bridge.close();
   }
 });
+it("requires confirmation of the latest rules and expires stale or failed profile reports", async () => {
+  const bridge = createChromeBridge("a".repeat(64), 0);
+  try {
+    await once(bridge.server, "listening");
+    const address = bridge.server.address();
+    if (!address || typeof address === "string") throw Error("No listener");
+    const url = `http://127.0.0.1:${address.port}/state`;
+    const headers = { Authorization: `Bearer ${"a".repeat(64)}`, Origin: chromeOrigin };
+    const poll = async (report = "") => fetch(url, { headers: { ...headers, "X-FocusLock-Report": report } });
+    const read = async (report = "") => (await (await poll(report)).json()) as { revision: string; domains: string[] };
+    const now = Date.now();
+    const session = { startedAt: now, allowanceEndsAt: now, blockEndsAt: now + 60000, status: "blocking" as const };
+    const result = { ok: true as const, now, value: session };
+    const sites = [{ domain: "reddit.com", enabled: true }];
+    bridge.update(result, sites);
+    const first = await read();
+    expect(bridge.status().sync).toEqual({ applied: 0, pending: 1, failed: 0 });
+    expect((await poll("invalid")).status).toBe(400);
+    await poll(`${first.revision}:applied`);
+    expect(bridge.update(result, sites)).toContain("confirmed in 1");
+    expect(bridge.status().sync).toEqual({ applied: 1, pending: 0, failed: 0 });
+    await poll(`${first.revision}:failed`);
+    expect(bridge.update(result, sites)).toContain("failed in 1");
+    expect(bridge.status().sync).toEqual({ applied: 0, pending: 0, failed: 1 });
+    expect(bridge.update(result, [{ domain: "youtube.com", enabled: true }])).toContain("Waiting for 1");
+    const changed = await read(`${first.revision}:applied`);
+    expect(changed.revision).not.toBe(first.revision);
+    expect(bridge.status().sync.applied).toBe(0);
+    await poll(`${changed.revision}:applied`);
+    expect(bridge.status().sync.applied).toBe(1);
+    bridge.update({ ...result, value: { ...session, status: "cancelled" } }, []);
+    const stopped = await read(`${changed.revision}:applied`);
+    expect(stopped.domains).toEqual([]);
+    expect(stopped.revision).not.toBe(changed.revision);
+    expect(bridge.status().sync.pending).toBe(1);
+    await poll(`${stopped.revision}:applied`);
+    expect(bridge.status().sync.applied).toBe(1);
+    bridge.update(result, sites);
+    const active = await read();
+    const clock = vi.spyOn(Date, "now").mockReturnValue(now + 60001);
+    const expired = await read(`${active.revision}:applied`);
+    expect(expired.domains).toEqual([]);
+    expect(expired.revision).not.toBe(active.revision);
+    expect(bridge.status().sync.pending).toBe(1);
+    clock.mockReturnValue(now + 66002);
+    expect(bridge.status().sync).toEqual({ applied: 0, pending: 0, failed: 0 });
+  } finally {
+    vi.restoreAllMocks();
+    bridge.close();
+  }
+});
 it("replaces existing matching tabs, blocks new requests, and releases on expiry, stop or disconnection", async () => {
   let now = 1000,
     offline = false;
-  let incoming = { domains: [] as string[], until: 0, leaseUntil: 6000 };
+  const revision = "33333333-3333-4333-8333-333333333333";
+  let incoming = { domains: [] as string[], until: 0, leaseUntil: 6000, revision };
+  const reports: string[] = [];
   const saved: Record<string, unknown> = {};
   const event = { addListener() {} };
   const noop = () => {};
@@ -111,6 +164,7 @@ it("replaces existing matching tabs, blocks new requests, and releases on expiry
   const fetchState = async (_url: string, init: { headers: Record<string, string> }) => {
     expect(init.headers["X-FocusLock-Browser"]).toBe("edge");
     expect(init.headers["X-FocusLock-Client"]).toBe("11111111-1111-4111-8111-111111111111");
+    reports.push(init.headers["X-FocusLock-Report"]);
     if (offline) throw Error("offline");
     return { ok: true, json: async () => incoming };
   };
@@ -127,22 +181,37 @@ it("replaces existing matching tabs, blocks new requests, and releases on expiry
   runInContext(readFileSync("resources/chrome/background.js", "utf8"), context);
   await new Promise(setImmediate);
   expect(profile.clientId).toBe("11111111-1111-4111-8111-111111111111");
-  incoming = { domains: ["reddit.com"], until: 10000, leaseUntil: 6000 };
+  incoming = { domains: ["reddit.com"], until: 10000, leaseUntil: 6000, revision };
   await runInContext("poll()", context);
   expect(update.mock.calls.map((call) => call[0])).toEqual([1, 3]);
   expect(rules.mock.lastCall?.[0].addRules).toHaveLength(2);
   expect(rules.mock.lastCall?.[0].addRules[0].action.redirect.regexSubstitution).toContain("#\\0");
+  expect(reports[0]).toBe("");
+  expect(reports[1]).toBe(`${revision}:applied`);
+  update.mockRejectedValueOnce(Error("Tab update failed"));
+  await runInContext("poll()", context);
+  expect(saved.status).toBe("Some tabs could not be blocked. Retrying…");
+  await runInContext("poll()", context);
+  expect(reports.at(-1)).toBe(`${revision}:failed`);
+  await runInContext("poll()", context);
+  expect(reports.at(-1)).toBe(`${revision}:applied`);
   offline = true;
   now = 6001;
   await runInContext("poll()", context);
   expect(rules.mock.lastCall?.[0].addRules).toEqual([]);
   offline = false;
-  incoming = { domains: ["reddit.com"], until: 10000, leaseUntil: 12000 };
+  incoming = { domains: ["reddit.com"], until: 10000, leaseUntil: 12000, revision };
+  rules.mockRejectedValueOnce(Error("Rules rejected"));
   await runInContext("poll()", context);
+  expect(saved.status).toBe("Browser blocking failed. Reload the extension.");
+  await runInContext("poll()", context);
+  expect(reports.at(-1)).toBe(`${revision}:failed`);
+  await runInContext("poll()", context);
+  expect(reports.at(-1)).toBe(`${revision}:applied`);
   now = 10001;
   await runInContext("poll()", context);
   expect(rules.mock.lastCall?.[0].addRules).toEqual([]);
-  incoming = { domains: [], until: 0, leaseUntil: 15000 };
+  incoming = { domains: [], until: 0, leaseUntil: 15000, revision };
   await runInContext("poll()", context);
   expect(saved.status).toBe("Connected to FocusLock");
 });
