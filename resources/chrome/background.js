@@ -74,6 +74,11 @@ async function poll() {
       }
     }
     const domains = valid(state) && state.until > Date.now() && state.leaseUntil > Date.now() ? state.domains : [];
+    const siteAccess =
+      !domains.length ||
+      (await ext.permissions.contains({
+        origins: domains.flatMap((domain) => [`http://*.${domain}/*`, `https://*.${domain}/*`]),
+      }));
     const key = JSON.stringify(domains);
     if (key !== rulesKey) {
       const action = { type: "redirect", redirect: { regexSubstitution: `${blockedPage}#\\0` } };
@@ -102,10 +107,12 @@ async function poll() {
       }
       status = tabFailed ? "Some tabs could not be blocked. Retrying…" : "Break active — selected websites are blocked";
     }
-    if (report && !tabFailed) report = `${state.revision}:applied`;
+    if (!siteAccess)
+      status = "Website access missing. Allow selected sites and their subdomains in the companion's browser settings.";
+    if (report && !tabFailed && siteAccess) report = `${state.revision}:applied`;
     await ext.storage.session.set({ state: state || null, status });
     await ext.action.setBadgeText({
-      text: tabFailed ? "!" : domains.length ? "ON" : status.startsWith("Connected") ? "" : "!",
+      text: tabFailed || !siteAccess ? "!" : domains.length ? "ON" : status.startsWith("Connected") ? "" : "!",
     });
   } catch {
     report = report.replace(/:applied$/, ":failed");
@@ -116,6 +123,11 @@ async function poll() {
   }
 }
 ext.runtime.onStartup.addListener(() => void poll());
+for (const event of [ext.permissions.onAdded, ext.permissions.onRemoved])
+  event.addListener(() => {
+    rulesKey = "";
+    void poll();
+  });
 ext.storage.onChanged.addListener((_changes, area) => {
   if (area === "local") void poll();
 });

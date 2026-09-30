@@ -27,3 +27,11 @@ If the dashboard shows a browser disconnected, check pairing and that browser's 
 The setup dialog also counts rule updates as **confirmed**, **waiting**, or **failed** across connected profiles. Confirmation means the companion applied the latest request rules and completed its tab replacement pass. It does not cover profiles without the companion, or prove that every possible browsing path is blocked. Failures appear in the session message during a break and in the companion popup; the companion retries on its next poll.
 
 Changing selections, stopping, or reaching the session deadline requires a new confirmation. Reports normally arrive on the next poll; disconnected profiles drop out after five seconds. Reload companions after upgrading to version 0.5.0: older versions can still block sites but cannot confirm their rules, so they remain waiting. These reports contain a rule revision and success/failure only, with no tab URLs or page content.
+
+## Website and private-window permissions
+
+Version 0.6.0 checks access to the selected domains and their subdomains before confirming active rules. Missing access produces a failure report and a `!` badge, while the companion continues attempting tab replacement and retries the permission check. Clearing rules when a break ends still works with limited website access.
+
+Open the companion popup to see website and private/incognito access. Limited website access is acceptable if it covers every selected site, including its subdomains, over HTTP and HTTPS. Adjust access in the browser's extension settings when the popup reports a problem. Private-window access is a separate browser setting; an ordinary-window connection does not confirm private-window coverage. The companion reads these settings without requesting or changing permissions. Live private-window enforcement remains unverified.
+
+API references: [Chrome permission checks](https://developer.chrome.com/docs/extensions/reference/api/permissions#method-contains) and [Firefox private-window access](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/extension/isAllowedIncognitoAccess).

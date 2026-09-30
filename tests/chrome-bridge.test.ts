@@ -144,9 +144,11 @@ it("replaces existing matching tabs, blocks new requests, and releases on expiry
   const local = { get: async () => profile, set: async (value: object) => Object.assign(profile, value) };
   const rules = vi.fn(),
     update = vi.fn();
+  const permissions = { contains: vi.fn().mockResolvedValue(true), onAdded: event, onRemoved: event };
   const chrome = {
     runtime: { getURL: (path: string) => `${chromeOrigin}/${path}`, onStartup: event, onInstalled: event },
     storage: { local, onChanged: event, session },
+    permissions,
     tabs: {
       onUpdated: event,
       update,
@@ -188,6 +190,16 @@ it("replaces existing matching tabs, blocks new requests, and releases on expiry
   expect(rules.mock.lastCall?.[0].addRules[0].action.redirect.regexSubstitution).toContain("#\\0");
   expect(reports[0]).toBe("");
   expect(reports[1]).toBe(`${revision}:applied`);
+  expect(permissions.contains).toHaveBeenCalledWith({ origins: ["http://*.reddit.com/*", "https://*.reddit.com/*"] });
+  permissions.contains.mockResolvedValue(false);
+  await runInContext("poll()", context);
+  expect(saved.status).toMatch(/Website access missing/);
+  await runInContext("poll()", context);
+  expect(reports.at(-1)).toBe(`${revision}:failed`);
+  permissions.contains.mockResolvedValue(true);
+  await runInContext("poll()", context);
+  await runInContext("poll()", context);
+  expect(reports.at(-1)).toBe(`${revision}:applied`);
   update.mockRejectedValueOnce(Error("Tab update failed"));
   await runInContext("poll()", context);
   expect(saved.status).toBe("Some tabs could not be blocked. Retrying…");
@@ -209,6 +221,7 @@ it("replaces existing matching tabs, blocks new requests, and releases on expiry
   await runInContext("poll()", context);
   expect(reports.at(-1)).toBe(`${revision}:applied`);
   now = 10001;
+  permissions.contains.mockResolvedValue(false);
   await runInContext("poll()", context);
   expect(rules.mock.lastCall?.[0].addRules).toEqual([]);
   incoming = { domains: [], until: 0, leaseUntil: 15000, revision };
@@ -237,6 +250,7 @@ it("runs the Firefox background page with its promise API and replaces an existi
       onChanged: event,
     },
     tabs: { query: async () => [{ id: 5, url: "https://www.reddit.com/r/test" }], update },
+    permissions: { contains: async () => true, onAdded: event, onRemoved: event },
     declarativeNetRequest: { updateSessionRules: rules },
     action: { setBadgeText: noop },
     alarms: { create: noop, onAlarm: event },

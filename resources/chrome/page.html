@@ -10,13 +10,17 @@
       <h1 id="heading">FocusLock</h1>
       <p id="site"></p>
       <p id="status">Checking connection…</p>
+      <section id="coverage" hidden aria-label="Browser access">
+        <p id="site-access" role="status">Checking website access…</p>
+        <p id="private-access" role="status">Checking private-window access…</p>
+      </section>
       <form id="pair">
         <p>In the desktop tray menu, choose “Copy Chrome pairing code”. Paste it here.</p>
         <label for="token">Pairing code</label><input id="token" type="password" autocomplete="off" required />
         <button>Pair browser</button>
       </form>
       <button id="return" hidden disabled>Return to website</button>
-      <p>Selected tabs become break pages. Their URLs stay in Chrome.</p>
+      <p>Selected tabs become break pages. Their URLs stay in this browser.</p>
     </main>
     <script src="page.js"></script>
   </body>

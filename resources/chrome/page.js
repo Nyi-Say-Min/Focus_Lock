@@ -11,6 +11,25 @@ try {
 }
 form.hidden = !!original;
 back.hidden = !original;
+document.getElementById("coverage").hidden = !!original;
+async function renderCoverage() {
+  const [sites, privateAccess] = await Promise.allSettled([
+    ext.permissions.contains({ origins: ["http://*/*", "https://*/*"] }),
+    ext.extension.isAllowedIncognitoAccess(),
+  ]);
+  document.getElementById("site-access").textContent =
+    sites.status === "rejected"
+      ? "Website access could not be checked. Reopen the companion to retry."
+      : sites.value
+        ? "Website access: all sites allowed."
+        : "Website access: limited. Allow selected sites and their subdomains (or all sites) in the companion's browser settings.";
+  document.getElementById("private-access").textContent =
+    privateAccess.status === "rejected"
+      ? "Private-window access could not be checked."
+      : privateAccess.value
+        ? "Private/incognito access: allowed. Pair every profile you use."
+        : "Private/incognito access: off. Enable it in the companion's browser settings to cover private windows.";
+}
 if (original) {
   document.getElementById("heading").textContent = "Break time!";
   document.getElementById("site").textContent = original?.hostname || "Website blocked";
@@ -33,6 +52,7 @@ async function render() {
   const { state, status: connection } = await ext.storage.session.get(["state", "status"]);
   if (!original) {
     status.textContent = connection || "Waiting for FocusLock…";
+    await renderCoverage();
     return;
   }
   const active =
