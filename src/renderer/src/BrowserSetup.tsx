@@ -71,7 +71,7 @@ export default function BrowserSetup() {
           {status
             ? status.unavailable
               ? "Connection unavailable: port 43821 is busy. Restart FocusLock after freeing it."
-              : `Chrome: ${status.chrome ? "connected" : "disconnected"} · Edge: ${status.edge ? "connected" : "disconnected"} · Firefox: ${status.firefox ? "connected" : "disconnected"}`
+              : `Connected profiles — Chrome: ${status.chrome} · Edge: ${status.edge} · Firefox: ${status.firefox}`
             : "Checking desktop connection… If this persists, close and reopen setup."}
         </p>
         <ol>
@@ -94,8 +94,8 @@ export default function BrowserSetup() {
             the code, and click Pair browser.
           </li>
           <li>
-            Wait for your browser to show connected above. During breaks,
-            selected websites and their subdomains become break pages.
+            Watch the connected profile counts above. During breaks, selected
+            websites and their subdomains become break pages.
           </li>
         </ol>
         <p>

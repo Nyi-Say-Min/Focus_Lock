@@ -9,7 +9,16 @@ export function createChromeBridge(token: string, port = 43821) {
   if (!/^[a-f0-9]{64}$/.test(token)) throw Error("INVALID_BROWSER_TOKEN");
   let state = { domains: [] as string[], until: 0 },
     failed = false;
-  const seen = { chrome: 0, edge: 0, firefox: 0 };
+  const clients = new Map<string, { browser: "chrome" | "edge" | "firefox"; seen: number }>();
+  function status(): BrowserStatus {
+    const now = Date.now();
+    const counts = { chrome: 0, edge: 0, firefox: 0, unavailable: failed };
+    for (const [key, client] of clients) {
+      if (now - client.seen > 5000) clients.delete(key);
+      else counts[client.browser]++;
+    }
+    return counts;
+  }
   const server = createServer({ maxHeaderSize: 8192 }, (request, response) => {
     const address = server.address();
     const credential = request.headers.authorization ?? "";
@@ -25,7 +34,7 @@ export function createChromeBridge(token: string, port = 43821) {
     if (!allowed) return response.writeHead(403).end();
     response.setHeader("Access-Control-Allow-Origin", origin || chromeOrigin);
     if (request.method === "OPTIONS") {
-      response.setHeader("Access-Control-Allow-Headers", "Authorization, X-FocusLock-Browser");
+      response.setHeader("Access-Control-Allow-Headers", "Authorization, X-FocusLock-Browser, X-FocusLock-Client");
       response.setHeader("Access-Control-Allow-Methods", "GET");
       return response.writeHead(204).end();
     }
@@ -41,10 +50,15 @@ export function createChromeBridge(token: string, port = 43821) {
         : request.headers["x-focuslock-browser"] === "edge"
           ? "edge"
           : "chrome";
-    seen[browser] = Date.now();
-    const current = state.until > seen[browser] ? state : { domains: [], until: 0 };
+    const seen = Date.now();
+    const id = request.headers["x-focuslock-client"];
+    if (id && (typeof id !== "string" || !/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/.test(id)))
+      return response.writeHead(400).end();
+    clients.set(`${browser}:${id || "legacy"}`, { browser, seen });
+    status();
+    const current = state.until > seen ? state : { domains: [], until: 0 };
     response.setHeader("Content-Type", "application/json");
-    response.end(JSON.stringify({ ...current, leaseUntil: seen[browser] + 5000 }));
+    response.end(JSON.stringify({ ...current, leaseUntil: seen + 5000 }));
   });
   server.on("error", () => {
     failed = true;
@@ -52,14 +66,7 @@ export function createChromeBridge(token: string, port = 43821) {
   server.listen(port, "127.0.0.1");
   return {
     server,
-    status(): BrowserStatus {
-      return {
-        chrome: seen.chrome > 0 && Date.now() - seen.chrome <= 5000,
-        edge: seen.edge > 0 && Date.now() - seen.edge <= 5000,
-        firefox: seen.firefox > 0 && Date.now() - seen.firefox <= 5000,
-        unavailable: failed,
-      };
-    },
+    status,
     update(result: SessionResult, sites: Website[]) {
       const value = result.ok ? result.value : null;
       state =
@@ -69,7 +76,7 @@ export function createChromeBridge(token: string, port = 43821) {
       return state.domains.length
         ? failed
           ? "Browser connection unavailable: local port 43821 is busy."
-          : !Object.values(seen).some((time) => time > 0 && Date.now() - time <= 5000)
+          : !status().chrome && !status().edge && !status().firefox
             ? "Browser companion disconnected. Install and pair it to block open tabs."
             : "Browser tab blocking connected."
         : "";

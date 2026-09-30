@@ -26,11 +26,11 @@ it("offers manual setup, copies without exposing the code, and updates connectio
   const browser = {
     getStatus: vi.fn().mockResolvedValue({
       ok: true,
-      status: { chrome: true, edge: false, firefox: false, unavailable: false },
+      status: { chrome: 2, edge: 0, firefox: 0, unavailable: false },
     }),
     copyCode: vi.fn().mockResolvedValue({
       ok: true,
-      status: { chrome: true, edge: false, firefox: false, unavailable: false },
+      status: { chrome: 2, edge: 0, firefox: 0, unavailable: false },
     }),
     openFolder: vi
       .fn()
@@ -46,9 +46,7 @@ it("offers manual setup, copies without exposing the code, and updates connectio
     "Browser website blocking",
   );
   expect(
-    screen.getByText(
-      "Chrome: connected · Edge: disconnected · Firefox: disconnected",
-    ),
+    screen.getByText("Connected profiles — Chrome: 2 · Edge: 0 · Firefox: 0"),
   ).toBeInTheDocument();
   expect(screen.getByText("chrome://extensions")).toBeInTheDocument();
   expect(screen.getByText("edge://extensions")).toBeInTheDocument();
@@ -69,15 +67,13 @@ it("offers manual setup, copies without exposing the code, and updates connectio
   ).toBeInTheDocument();
   browser.getStatus.mockResolvedValue({
     ok: true,
-    status: { chrome: false, edge: true, firefox: false, unavailable: false },
+    status: { chrome: 0, edge: 1, firefox: 1, unavailable: false },
   });
   await act(async () => {
     await vi.advanceTimersByTimeAsync(1500);
   });
   expect(
-    screen.getByText(
-      "Chrome: disconnected · Edge: connected · Firefox: disconnected",
-    ),
+    screen.getByText("Connected profiles — Chrome: 0 · Edge: 1 · Firefox: 1"),
   ).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Close" }));
   const calls = browser.getStatus.mock.calls.length;

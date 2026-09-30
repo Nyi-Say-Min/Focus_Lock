@@ -1,7 +1,7 @@
 export type BrowserStatus = {
-  chrome: boolean;
-  edge: boolean;
-  firefox: boolean;
+  chrome: number;
+  edge: number;
+  firefox: number;
   unavailable: boolean;
 };
 export type BrowserResult =

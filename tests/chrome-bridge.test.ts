@@ -10,8 +10,9 @@ it("authenticates Chrome, rejects websites, exposes only active selections, and 
     const address = bridge.server.address();
     if (!address || typeof address === "string") throw Error("No listener");
     const url = `http://127.0.0.1:${address.port}/state`;
-    const headers = { Authorization: `Bearer ${"a".repeat(64)}`, Origin: chromeOrigin };
-    expect(bridge.status()).toEqual({ chrome: false, edge: false, firefox: false, unavailable: false });
+    const clientId = "11111111-1111-4111-8111-111111111111";
+    const headers = { Authorization: `Bearer ${"a".repeat(64)}`, Origin: chromeOrigin, "X-FocusLock-Client": clientId };
+    expect(bridge.status()).toEqual({ chrome: 0, edge: 0, firefox: 0, unavailable: false });
     expect((await fetch(url)).status).toBe(401);
     expect((await fetch(url, { headers: { ...headers, Origin: "https://reddit.com" } })).status).toBe(403);
     expect((await fetch(url, { headers, method: "POST" })).status).toBe(401);
@@ -28,20 +29,37 @@ it("authenticates Chrome, rejects websites, exposes only active selections, and 
     };
     expect(state).toMatchObject({ domains: ["reddit.com"], until: session.blockEndsAt });
     expect(state.leaseUntil).toBeGreaterThan(now);
-    expect(bridge.status()).toEqual({ chrome: true, edge: false, firefox: false, unavailable: false });
+    expect(bridge.status()).toEqual({ chrome: 1, edge: 0, firefox: 0, unavailable: false });
+    const second = { ...headers, "X-FocusLock-Client": "22222222-2222-4222-8222-222222222222" };
+    expect((await fetch(url, { headers: second })).status).toBe(200);
+    expect((await fetch(url, { headers: second })).status).toBe(200);
+    expect(bridge.status()).toEqual({ chrome: 2, edge: 0, firefox: 0, unavailable: false });
+    expect((await fetch(url, { headers: { ...headers, "X-FocusLock-Client": "invalid" } })).status).toBe(400);
+    expect(bridge.status().chrome).toBe(2);
     expect(await (await fetch(url, { headers: { ...headers, "X-FocusLock-Browser": "edge" } })).json()).toMatchObject({
       domains: ["reddit.com"],
     });
-    expect(bridge.status()).toEqual({ chrome: true, edge: true, firefox: false, unavailable: false });
+    expect(bridge.status()).toEqual({ chrome: 2, edge: 1, firefox: 0, unavailable: false });
     const firefox = "moz-extension://12345678-1234-1234-1234-123456789abc";
     expect(
       (
         await fetch(url, {
           method: "OPTIONS",
-          headers: { Origin: firefox, "Access-Control-Request-Headers": "authorization,x-focuslock-browser" },
+          headers: {
+            Origin: firefox,
+            "Access-Control-Request-Headers": "authorization,x-focuslock-browser,x-focuslock-client",
+          },
         })
       ).headers.get("access-control-allow-origin"),
     ).toBe(firefox);
+    expect(
+      (
+        await fetch(url, {
+          method: "OPTIONS",
+          headers: { Origin: firefox, "Access-Control-Request-Headers": "x-focuslock-client" },
+        })
+      ).headers.get("access-control-allow-headers"),
+    ).toContain("X-FocusLock-Client");
     expect((await fetch(url, { headers: { ...headers, Origin: "moz-extension://spoof" } })).status).toBe(403);
     expect((await fetch(url, { headers: { ...headers, Origin: firefox, Authorization: "Bearer wrong" } })).status).toBe(
       401,
@@ -49,9 +67,9 @@ it("authenticates Chrome, rejects websites, exposes only active selections, and 
     expect(
       (await fetch(url, { headers: { ...headers, Origin: firefox, "X-FocusLock-Browser": "firefox" } })).status,
     ).toBe(200);
-    expect(bridge.status()).toEqual({ chrome: true, edge: true, firefox: true, unavailable: false });
+    expect(bridge.status()).toEqual({ chrome: 2, edge: 1, firefox: 1, unavailable: false });
     const clock = vi.spyOn(Date, "now").mockReturnValue(Date.now() + 6000);
-    expect(bridge.status()).toEqual({ chrome: false, edge: false, firefox: false, unavailable: false });
+    expect(bridge.status()).toEqual({ chrome: 0, edge: 0, firefox: 0, unavailable: false });
     clock.mockRestore();
     bridge.update({ ok: true, now, value: { ...session, status: "cancelled" } }, []);
     expect(await (await fetch(url, { headers })).json()).toMatchObject({ domains: [], until: 0 });
@@ -69,7 +87,8 @@ it("replaces existing matching tabs, blocks new requests, and releases on expiry
   const noop = () => {};
   const clock = { now: () => now };
   const session = { get: async () => saved, set: async (value: object) => Object.assign(saved, value) };
-  const local = { get: async () => ({ token: "a".repeat(64) }) };
+  const profile: { token: string; clientId?: string } = { token: "a".repeat(64) };
+  const local = { get: async () => profile, set: async (value: object) => Object.assign(profile, value) };
   const rules = vi.fn(),
     update = vi.fn();
   const chrome = {
@@ -91,6 +110,7 @@ it("replaces existing matching tabs, blocks new requests, and releases on expiry
   };
   const fetchState = async (_url: string, init: { headers: Record<string, string> }) => {
     expect(init.headers["X-FocusLock-Browser"]).toBe("edge");
+    expect(init.headers["X-FocusLock-Client"]).toBe("11111111-1111-4111-8111-111111111111");
     if (offline) throw Error("offline");
     return { ok: true, json: async () => incoming };
   };
@@ -100,11 +120,13 @@ it("replaces existing matching tabs, blocks new requests, and releases on expiry
     URL,
     AbortSignal,
     Date: clock,
+    crypto: { randomUUID: () => "11111111-1111-4111-8111-111111111111" },
     setInterval: noop,
     fetch: fetchState,
   });
   runInContext(readFileSync("resources/chrome/background.js", "utf8"), context);
   await new Promise(setImmediate);
+  expect(profile.clientId).toBe("11111111-1111-4111-8111-111111111111");
   incoming = { domains: ["reddit.com"], until: 10000, leaseUntil: 6000 };
   await runInContext("poll()", context);
   expect(update.mock.calls.map((call) => call[0])).toEqual([1, 3]);
@@ -130,6 +152,7 @@ it("runs the Firefox background page with its promise API and replaces an existi
     rules = vi.fn(),
     fetchState = vi.fn(async (_url: string, options: { headers: Record<string, string> }) => {
       expect(options.headers["X-FocusLock-Browser"]).toBe("firefox");
+      expect(options.headers["X-FocusLock-Client"]).toBe("11111111-1111-4111-8111-111111111111");
       return { ok: true, json: async () => ({ domains: ["reddit.com"], until: now + 60000, leaseUntil: now + 5000 }) };
     });
   const event = { addListener() {} },
@@ -140,7 +163,7 @@ it("runs the Firefox background page with its promise API and replaces an existi
       onStartup: event,
     },
     storage: {
-      local: { get: async () => ({ token: "a".repeat(64) }) },
+      local: { get: async () => ({ token: "a".repeat(64) }), set: async () => {} },
       session: { get: async () => ({}), set: noop },
       onChanged: event,
     },
@@ -157,6 +180,7 @@ it("runs the Firefox background page with its promise API and replaces an existi
       URL,
       AbortSignal,
       Date,
+      crypto: { randomUUID: () => "11111111-1111-4111-8111-111111111111" },
       fetch: fetchState,
       setInterval: noop,
     }),

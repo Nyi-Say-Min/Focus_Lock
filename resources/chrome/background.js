@@ -40,13 +40,21 @@ async function poll() {
   if (busy) return;
   busy = true;
   try {
-    const { token } = await ext.storage.local.get("token");
+    let { token, clientId } = await ext.storage.local.get(["token", "clientId"]);
+    if (token && !clientId) {
+      clientId = crypto.randomUUID();
+      await ext.storage.local.set({ clientId });
+    }
     let { state } = await ext.storage.session.get("state");
     let status = token ? "FocusLock disconnected" : "Pair with FocusLock first";
     if (token) {
       try {
         const response = await fetch("http://127.0.0.1:43821/state", {
-          headers: { Authorization: `Bearer ${token}`, "X-FocusLock-Browser": browserName },
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "X-FocusLock-Browser": browserName,
+            "X-FocusLock-Client": clientId,
+          },
           signal: AbortSignal.timeout(2000),
           cache: "no-store",
         });
