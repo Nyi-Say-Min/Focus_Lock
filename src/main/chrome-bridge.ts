@@ -7,8 +7,8 @@ export const chromeOrigin = "chrome-extension://lagcombaaakcbdigjgoinbakanadojlk
 export function createChromeBridge(token: string, port = 43821) {
   if (!/^[a-f0-9]{64}$/.test(token)) throw Error("INVALID_BROWSER_TOKEN");
   let state = { domains: [] as string[], until: 0 },
-    seen = 0,
     failed = false;
+  const seen = { chrome: 0, edge: 0 };
   const server = createServer({ maxHeaderSize: 8192 }, (request, response) => {
     const address = server.address();
     const credential = request.headers.authorization ?? "";
@@ -23,7 +23,7 @@ export function createChromeBridge(token: string, port = 43821) {
     if (!allowed) return response.writeHead(403).end();
     response.setHeader("Access-Control-Allow-Origin", chromeOrigin);
     if (request.method === "OPTIONS") {
-      response.setHeader("Access-Control-Allow-Headers", "Authorization");
+      response.setHeader("Access-Control-Allow-Headers", "Authorization, X-FocusLock-Browser");
       response.setHeader("Access-Control-Allow-Methods", "GET");
       return response.writeHead(204).end();
     }
@@ -33,10 +33,11 @@ export function createChromeBridge(token: string, port = 43821) {
       !timingSafeEqual(Buffer.from(credential), Buffer.from(expected))
     )
       return response.writeHead(401).end();
-    seen = Date.now();
-    const current = state.until > seen ? state : { domains: [], until: 0 };
+    const browser = request.headers["x-focuslock-browser"] === "edge" ? "edge" : "chrome";
+    seen[browser] = Date.now();
+    const current = state.until > seen[browser] ? state : { domains: [], until: 0 };
     response.setHeader("Content-Type", "application/json");
-    response.end(JSON.stringify({ ...current, leaseUntil: seen + 5000 }));
+    response.end(JSON.stringify({ ...current, leaseUntil: seen[browser] + 5000 }));
   });
   server.on("error", () => {
     failed = true;
@@ -45,7 +46,11 @@ export function createChromeBridge(token: string, port = 43821) {
   return {
     server,
     status(): BrowserStatus {
-      return failed ? "unavailable" : seen > 0 && Date.now() - seen <= 5000 ? "connected" : "disconnected";
+      return {
+        chrome: seen.chrome > 0 && Date.now() - seen.chrome <= 5000,
+        edge: seen.edge > 0 && Date.now() - seen.edge <= 5000,
+        unavailable: failed,
+      };
     },
     update(result: SessionResult, sites: Website[]) {
       const value = result.ok ? result.value : null;
@@ -55,10 +60,10 @@ export function createChromeBridge(token: string, port = 43821) {
           : { domains: [], until: 0 };
       return state.domains.length
         ? failed
-          ? "Chrome connection unavailable: local port 43821 is busy."
-          : Date.now() - seen > 5000
-            ? "Chrome extension disconnected. Install and pair it to block open tabs."
-            : "Chrome tab blocking connected."
+          ? "Browser connection unavailable: local port 43821 is busy."
+          : !Object.values(seen).some((time) => time > 0 && Date.now() - time <= 5000)
+            ? "Browser companion disconnected. Install and pair it to block open tabs."
+            : "Browser tab blocking connected."
         : "";
     },
     close() {

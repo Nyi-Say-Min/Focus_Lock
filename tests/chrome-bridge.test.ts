@@ -11,7 +11,7 @@ it("authenticates Chrome, rejects websites, exposes only active selections, and 
     if (!address || typeof address === "string") throw Error("No listener");
     const url = `http://127.0.0.1:${address.port}/state`;
     const headers = { Authorization: `Bearer ${"a".repeat(64)}`, Origin: chromeOrigin };
-    expect(bridge.status()).toBe("disconnected");
+    expect(bridge.status()).toEqual({ chrome: false, edge: false, unavailable: false });
     expect((await fetch(url)).status).toBe(401);
     expect((await fetch(url, { headers: { ...headers, Origin: "https://reddit.com" } })).status).toBe(403);
     expect((await fetch(url, { headers, method: "POST" })).status).toBe(401);
@@ -21,13 +21,20 @@ it("authenticates Chrome, rejects websites, exposes only active selections, and 
       { domain: "reddit.com", enabled: true },
       { domain: "x.com", enabled: false },
     ]);
-    expect(await (await fetch(url, { headers })).json()).toMatchObject({
+    const state = (await (await fetch(url, { headers })).json()) as {
+      leaseUntil: number;
+      domains: string[];
+      until: number;
+    };
+    expect(state).toMatchObject({ domains: ["reddit.com"], until: session.blockEndsAt });
+    expect(state.leaseUntil).toBeGreaterThan(now);
+    expect(bridge.status()).toEqual({ chrome: true, edge: false, unavailable: false });
+    expect(await (await fetch(url, { headers: { ...headers, "X-FocusLock-Browser": "edge" } })).json()).toMatchObject({
       domains: ["reddit.com"],
-      until: session.blockEndsAt,
     });
-    expect(bridge.status()).toBe("connected");
+    expect(bridge.status()).toEqual({ chrome: true, edge: true, unavailable: false });
     const clock = vi.spyOn(Date, "now").mockReturnValue(Date.now() + 6000);
-    expect(bridge.status()).toBe("disconnected");
+    expect(bridge.status()).toEqual({ chrome: false, edge: false, unavailable: false });
     clock.mockRestore();
     bridge.update({ ok: true, now, value: { ...session, status: "cancelled" } }, []);
     expect(await (await fetch(url, { headers })).json()).toMatchObject({ domains: [], until: 0 });
@@ -65,11 +72,20 @@ it("replaces existing matching tabs, blocks new requests, and releases on expiry
     action: { setBadgeText: noop },
     alarms: { create: noop, onAlarm: event },
   };
-  const fetchState = async () => {
+  const fetchState = async (_url: string, init: { headers: Record<string, string> }) => {
+    expect(init.headers["X-FocusLock-Browser"]).toBe("edge");
     if (offline) throw Error("offline");
     return { ok: true, json: async () => incoming };
   };
-  const context = createContext({ chrome, URL, AbortSignal, Date: clock, setInterval: noop, fetch: fetchState });
+  const context = createContext({
+    chrome,
+    navigator: { userAgent: "Mozilla/5.0 Edg/120" },
+    URL,
+    AbortSignal,
+    Date: clock,
+    setInterval: noop,
+    fetch: fetchState,
+  });
   runInContext(readFileSync("resources/chrome/background.js", "utf8"), context);
   await new Promise(setImmediate);
   incoming = { domains: ["reddit.com"], until: 10000, leaseUntil: 6000 };

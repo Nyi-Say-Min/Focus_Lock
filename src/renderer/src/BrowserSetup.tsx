@@ -1,13 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { BrowserStatus } from "../../shared/browser";
 import { Button } from "./common/ui";
-const labels: Record<BrowserStatus, string> = {
-  connected: "Connected to Chrome",
-  disconnected:
-    "Chrome companion disconnected — install and pair it in this Chrome profile.",
-  unavailable:
-    "Connection unavailable: port 43821 is busy. Restart FocusLock after freeing the port.",
-};
 export default function BrowserSetup() {
   const dialog = useRef<HTMLDialogElement>(null);
   const [open, setOpen] = useState(false),
@@ -46,7 +39,7 @@ export default function BrowserSetup() {
         result.ok
           ? name === "copyCode"
             ? "Pairing code copied. Paste it only into the FocusLock companion."
-            : "Extension folder opened. Select this folder in Chrome’s Load unpacked dialog."
+            : "Extension folder opened. Select it in your browser’s Load unpacked dialog."
           : "Setup action failed. Please try again.",
       );
     } catch {
@@ -65,7 +58,7 @@ export default function BrowserSetup() {
           setOpen(true);
         }}
       >
-        Set up Chrome
+        Set up browsers
       </button>
       <dialog
         ref={dialog}
@@ -73,33 +66,36 @@ export default function BrowserSetup() {
         aria-labelledby="chrome-setup-heading"
         onClose={() => setOpen(false)}
       >
-        <h2 id="chrome-setup-heading">Chrome website blocking</h2>
+        <h2 id="chrome-setup-heading">Browser website blocking</h2>
         <p role="status">
           {status
-            ? labels[status]
+            ? status.unavailable
+              ? "Connection unavailable: port 43821 is busy. Restart FocusLock after freeing it."
+              : `Chrome: ${status.chrome ? "connected" : "disconnected"} · Edge: ${status.edge ? "connected" : "disconnected"}`
             : "Checking desktop connection… If this persists, close and reopen setup."}
         </p>
         <ol>
           <li>
-            Open <code>chrome://extensions</code> yourself. Enable Developer
-            mode, then choose Load unpacked.
+            Open <code>chrome://extensions</code> or{" "}
+            <code>edge://extensions</code> yourself. Enable Developer mode, then
+            choose Load unpacked.
           </li>
           <li>
             Click Open extension folder below. Select that folder in Chrome’s
-            Load unpacked dialog.
+            Load unpacked dialog in each browser you want to block.
           </li>
           <li>
             Click Copy pairing code below. Open the companion’s options, paste
-            the code, and click Pair Chrome.
+            the code, and click Pair browser.
           </li>
           <li>
-            Wait for Connected to Chrome above. During breaks, selected websites
-            and their subdomains become break pages.
+            Wait for your browser to show connected above. During breaks,
+            selected websites and their subdomains become break pages.
           </li>
         </ol>
         <p>
-          Install in each Chrome profile you use. Other browsers are not
-          supported by this companion.
+          Install and pair in every Chrome or Edge profile you use. Firefox and
+          other browsers are not supported by this companion.
         </p>
         <p>
           URLs stay in your tabs; unsaved page state is lost. Return to website

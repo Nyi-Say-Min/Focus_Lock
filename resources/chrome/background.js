@@ -1,6 +1,7 @@
 let busy = false,
   rulesKey = "";
 const blockedPage = chrome.runtime.getURL("page.html");
+const browserName = /\bEdg\//.test(navigator.userAgent) ? "edge" : "chrome";
 function matches(url, domains) {
   try {
     const parsed = new URL(url);
@@ -40,7 +41,7 @@ async function poll() {
     if (token) {
       try {
         const response = await fetch("http://127.0.0.1:43821/state", {
-          headers: { Authorization: `Bearer ${token}` },
+          headers: { Authorization: `Bearer ${token}`, "X-FocusLock-Browser": browserName },
           signal: AbortSignal.timeout(2000),
           cache: "no-store",
         });

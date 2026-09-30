@@ -24,8 +24,18 @@ it("offers manual setup, copies without exposing the code, and updates connectio
     this.dispatchEvent(new Event("close"));
   };
   const browser = {
-    getStatus: vi.fn().mockResolvedValue({ ok: true, status: "connected" }),
-    copyCode: vi.fn().mockResolvedValue({ ok: true, status: "connected" }),
+    getStatus: vi
+      .fn()
+      .mockResolvedValue({
+        ok: true,
+        status: { chrome: true, edge: false, unavailable: false },
+      }),
+    copyCode: vi
+      .fn()
+      .mockResolvedValue({
+        ok: true,
+        status: { chrome: true, edge: false, unavailable: false },
+      }),
     openFolder: vi
       .fn()
       .mockResolvedValue({ ok: false, error: "FOLDER_UNAVAILABLE" }),
@@ -34,13 +44,16 @@ it("offers manual setup, copies without exposing the code, and updates connectio
   render(<BrowserSetup />);
   expect(browser.getStatus).not.toHaveBeenCalled();
   await act(async () => {
-    fireEvent.click(screen.getByRole("button", { name: "Set up Chrome" }));
+    fireEvent.click(screen.getByRole("button", { name: "Set up browsers" }));
   });
   expect(screen.getByRole("dialog")).toHaveAccessibleName(
-    "Chrome website blocking",
+    "Browser website blocking",
   );
-  expect(screen.getByText("Connected to Chrome")).toBeInTheDocument();
+  expect(
+    screen.getByText("Chrome: connected · Edge: disconnected"),
+  ).toBeInTheDocument();
   expect(screen.getByText("chrome://extensions")).toBeInTheDocument();
+  expect(screen.getByText("edge://extensions")).toBeInTheDocument();
   await act(async () => {
     fireEvent.click(screen.getByRole("button", { name: "Copy pairing code" }));
   });
@@ -55,11 +68,16 @@ it("offers manual setup, copies without exposing the code, and updates connectio
   expect(
     screen.getByText("Setup action failed. Please try again."),
   ).toBeInTheDocument();
-  browser.getStatus.mockResolvedValue({ ok: true, status: "disconnected" });
+  browser.getStatus.mockResolvedValue({
+    ok: true,
+    status: { chrome: false, edge: true, unavailable: false },
+  });
   await act(async () => {
     await vi.advanceTimersByTimeAsync(1500);
   });
-  expect(screen.getByText(/Chrome companion disconnected/)).toBeInTheDocument();
+  expect(
+    screen.getByText("Chrome: disconnected · Edge: connected"),
+  ).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Close" }));
   const calls = browser.getStatus.mock.calls.length;
   await act(async () => {
